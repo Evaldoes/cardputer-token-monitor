@@ -62,6 +62,28 @@
 
 ## Quick start
 
+The easiest way, on Linux:
+
+```bash
+git clone https://github.com/Evaldoes/cardputer-token-monitor.git
+cd cardputer-token-monitor
+./setup.sh
+```
+
+It checks requirements, backs up your firmware, flashes, pairs, installs hooks, asks for alerts and enables autostart, confirming each step. You can run it again safely.
+
+| Option | Purpose |
+| --- | --- |
+| `--yes` | Accept every step without asking |
+| `--no-flash` | Only configure the PC, with no backup or flashing |
+| `--approve` | Allow approving from the device; always asks you to type a confirmation |
+| `--port PORT` | Serial port, detected by default |
+| `--dry-run` | Show what it would do, changing nothing |
+
+It doesn't format the microSD, join Wi-Fi or add you to the `dialout` group.
+
+### Manual setup
+
 ```bash
 git clone https://github.com/Evaldoes/cardputer-token-monitor.git
 cd cardputer-token-monitor
