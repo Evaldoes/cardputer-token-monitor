@@ -422,7 +422,7 @@ Repository layout:
 - **No account or API key:** everything comes from local files, and nothing is sent to the internet.
 - **USB data:** totals, project and session names, tool names and, with approval on, short commands. Conversation content is never sent.
 - **Wi-Fi broadcasts:** unauthenticated. Anyone on your network can read the totals or spoof what the screen shows, including the mascot's mood. They never carry project names or approvals, make no sound, and are never written to the microSD.
-- **Wi-Fi password:** stored unencrypted on the device, so anyone holding it could extract it. Use **Forget Wi-Fi** before lending it, and remember that firmware backups may contain the password.
+- **Wi-Fi password:** stored unencrypted on the device, so anyone holding it could extract it. The device only listens while PC broadcast is on. **Forget Wi-Fi** overwrites the password before removing it, but flash can keep old traces, so restore or erase the flash before giving the device away. Remember that firmware backups may contain the password.
 - **Unpaired devices:** can't approve requests, run commands or change settings on the PC.
 - **Physical access:** with pairing, anyone holding the device can trigger your configured commands, and approvals if enabled.
 

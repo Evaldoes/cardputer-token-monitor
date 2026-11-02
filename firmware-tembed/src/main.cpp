@@ -311,6 +311,7 @@ void appendHistory(const String &newDate) {
 void startWifi() {
     String ssid = prefs.getString("ssid", "");
     if (!ssid.length()) return;
+    WiFi.persistent(false);  // a senha fica só em um lugar, que "Esquecer" consegue apagar
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), prefs.getString("pass", "").c_str());
 }
@@ -794,9 +795,10 @@ void settingAction(int item) {
         case 8:
             break;  // Sem teclado: a rede é definida pelo PC, com token_bridge.py --wifi.
         case 9:
+            prefs.putString("pass", String("                                                                ").c_str());
             prefs.remove("ssid");
             prefs.remove("pass");
-            WiFi.disconnect(true);
+            WiFi.disconnect(true, true);
             if (udpReady) udp.stop();
             udpReady = false;
             prefs.putBool("bcast", false);
@@ -968,7 +970,18 @@ void loop() {
             input += c;
         }
     }
-    if (WiFi.status() == WL_CONNECTED) {
+    // Só ouve a rede com a transmissão ligada: fora disso, ninguém altera a tela por ela.
+    static bool udpWanted = false;
+    static uint32_t udpChecked = 0;
+    if (millis() - udpChecked > 1000) {
+        udpChecked = millis();
+        udpWanted = prefs.getBool("bcast", false) && WiFi.status() == WL_CONNECTED;
+        if (!udpWanted && udpReady) {
+            udp.stop();
+            udpReady = false;
+        }
+    }
+    if (udpWanted) {
         if (!udpReady) udpReady = udp.begin(UDP_PORT);
         int size = udp.parsePacket();
         if (size > 0 && size < 2048) {

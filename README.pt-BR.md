@@ -422,7 +422,7 @@ Organização do repositório:
 - **Sem conta nem chave de API:** tudo vem de arquivos locais, e nada é enviado para a internet.
 - **Dados pela USB:** totais, nomes de projetos e sessões, nomes de ferramentas e, com a aprovação ligada, comandos curtos. O conteúdo das conversas nunca é enviado.
 - **Transmissão por Wi-Fi:** não tem autenticação. Qualquer pessoa na sua rede pode ler os totais ou falsificar o que aparece na tela, inclusive o humor do mascote. Ela nunca leva nomes de projetos nem aprovações, não faz som e nunca é gravada no microSD.
-- **Senha do Wi-Fi:** fica sem criptografia no aparelho, e quem tiver acesso físico a ele pode conseguir extraí-la. Use **Esquecer Wi-Fi** antes de emprestá-lo, e lembre que backups do firmware podem conter a senha.
+- **Senha do Wi-Fi:** fica sem criptografia no aparelho, e quem tiver acesso físico a ele pode conseguir extraí-la. O aparelho só ouve a rede com PC transmite ligado. **Esquecer Wi-Fi** sobrescreve a senha antes de removê-la, mas a flash pode guardar vestígios, então regrave ou apague a flash antes de passar o aparelho adiante. Lembre que backups do firmware podem conter a senha.
 - **Aparelhos não pareados:** não aprovam pedidos, não rodam comandos e não mudam configurações no PC.
 - **Acesso físico:** com o pareamento, quem estiver com o aparelho na mão pode disparar seus comandos configurados e, se ativadas, as aprovações.
 
