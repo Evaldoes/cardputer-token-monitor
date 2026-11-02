@@ -10,6 +10,11 @@
 
 - **Pixel mascot:** walks while Claude works, jumps when it needs you, panics on alerts, sleeps when no session is active or the PC stops sending
 - **Virtual pet:** press `g` to feed, play, pet and put your mascot to bed; it levels up as you use tokens and never dies
+- **Mini-game and accessories:** press `j` on the pet screen for a jumping game; hat, glasses and crown unlock by level
+- **Reactions:** celebrates finished tasks and flinches at failed tools
+- **Pomodoro:** press `r` for 25/5 focus cycles
+- **Screen timeout:** saves battery; a key only wakes the screen
+- **Weekly comparison, per-model usage and daily budget**
 - **Agent status:** working, idle or waiting for permission, with a beep when it needs you
 - **Approve from the device (opt-in):** press `y` twice to allow, `n` to deny
 - **Estimated cost:** today, week and session at API list prices
@@ -26,7 +31,7 @@
 
 ## Screens
 
-Today, Week and Session show totals, cost, chart, rate and forecast. Then come Projects (top 4 over 7 days), Sessions (live status) and Records (streak, record and heatmap). The pet has its own screen.
+Today, Week and Session show totals, cost, chart, rate and forecast. Then come Projects (top 4 over 7 days), Sessions (live status and tool), Records (streak, record and heatmap), Weekly comparison and Models. The pet has its own screen.
 
 ## Keys
 
@@ -35,6 +40,7 @@ Today, Week and Session show totals, cost, chart, rate and forecast. Then come P
 | `,` / most other keys | Previous / next screen |
 | `o` | Settings (`;` `.` move, Enter change, `` ` `` exit) |
 | `g` | Open or close the pet screen |
+| `r` | Start or stop Pomodoro |
 | `t` | Next theme |
 | `c` | Next mascot color |
 | `m` | Mute |
@@ -50,8 +56,9 @@ Today, Week and Session show totals, cost, chart, rate and forecast. Then come P
 | `b` | Play (uses energy and food; refused when exhausted or starving) |
 | `h` | Pet |
 | `s` | Sleep or wake up (wakes by itself when rested) |
+| `j` | Play the jumping game |
 
-Hunger, energy and joy keep changing while the device is off, up to 7 days, and catch up when the PC next connects. It never dies. Level 2 takes 500 thousand tokens and level 3 takes 2 million. State is saved at most every 10 minutes to spare the flash, so the last few actions can be lost on power-off.
+Hunger, energy and joy keep changing while the device is off, up to 7 days, and catch up when the PC next connects. It never dies. Level 2 (hat) takes 500 thousand tokens, level 3 (glasses) takes 2 million and level 5 (crown) takes 8 million. State is saved at most every 10 minutes to spare the flash, so the last few actions can be lost on power-off.
 
 ## Requirements
 
@@ -102,6 +109,7 @@ Config lives in `~/.config/cardputer-token-monitor.json`:
 {
   "goal_daily_tokens": 2000000,
   "window_warn_minutes": 30,
+  "budget_daily_usd": 20,
   "wifi_broadcast": false,
   "device_serial": "set by --pair",
   "commands": {"1": ["notify-send", "Hello from the Cardputer"]}
@@ -130,7 +138,7 @@ Claude Code hooks -> ~/.cache/cardputer-token-monitor -> bridge/token_bridge.py
 ## Project status
 
 - **Tested on a real device (Linux):** mascot, totals, keys and themes, plus agent status through hooks.
-- **Not yet tested on a real device:** approval, on-device settings, languages, Wi-Fi, microSD history, web installer, macOS and Windows.
+- **Not yet tested on a real device:** approval, screen timeout, mini-game, reactions, Pomodoro, on-device settings, languages, Wi-Fi, microSD history, web installer, macOS and Windows.
 
 ## What the numbers mean
 

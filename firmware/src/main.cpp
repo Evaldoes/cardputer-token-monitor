@@ -12,7 +12,7 @@ static const uint32_t CONFIRM_MS = 3000;
 static const int UDP_PORT = 47474;
 static const int SD_SCK = 40, SD_MISO = 39, SD_MOSI = 14, SD_CS = 12;
 
-enum Str {S_TODAY, S_WEEK, S_SESSION, S_WAITING_PC, S_NO_DATA, S_PAUSED, S_MUTED, S_FORECAST, S_PROJECTS, S_NO_PROJECTS, S_SESSIONS, S_NO_SESSIONS, S_ST_WAITING, S_ST_WORKING, S_ST_IDLE, S_RECORDS, S_STREAK, S_RECORD, S_GOAL, S_PERMISSION, S_SEE_TERMINAL, S_APPROVE_AGAIN, S_APPROVE_HINT, S_PET_TITLE, S_FOOD, S_ENERGY, S_JOY, S_PET_HINT1, S_PET_HINT2, S_M_ASLEEP, S_M_HUNGRY, S_M_TIRED, S_M_SAD, S_M_HAPPY, S_M_OK, S_NIGHT, S_MORNING, S_WAKE_HINT, S_FULL, S_YUM, S_LOVE, S_EXHAUSTED, S_STARVING, S_BALL, S_SETTINGS, S_LANGUAGE, S_THEME, S_MASCOT, S_SOUND, S_ON, S_OFF, S_BRIGHTNESS, S_WIFI, S_WIFI_FORGET, S_NONE, S_CONNECTED, S_CONNECTING, S_FAILED, S_MENU_HINT, S_NETWORKS, S_SCANNING, S_NO_NETWORKS, S_NET_HINT, S_PASSWORD, S_PASS_HINT, S_PC_NOTE, S_BROADCAST, S_COUNT};
+enum Str {S_TODAY, S_WEEK, S_SESSION, S_WAITING_PC, S_NO_DATA, S_PAUSED, S_MUTED, S_FORECAST, S_PROJECTS, S_NO_PROJECTS, S_SESSIONS, S_NO_SESSIONS, S_ST_WAITING, S_ST_WORKING, S_ST_IDLE, S_RECORDS, S_STREAK, S_RECORD, S_GOAL, S_PERMISSION, S_SEE_TERMINAL, S_APPROVE_AGAIN, S_APPROVE_HINT, S_PET_TITLE, S_FOOD, S_ENERGY, S_JOY, S_PET_HINT1, S_PET_HINT2, S_M_ASLEEP, S_M_HUNGRY, S_M_TIRED, S_M_SAD, S_M_HAPPY, S_M_OK, S_NIGHT, S_MORNING, S_WAKE_HINT, S_FULL, S_YUM, S_LOVE, S_EXHAUSTED, S_STARVING, S_BALL, S_SETTINGS, S_LANGUAGE, S_THEME, S_MASCOT, S_SOUND, S_ON, S_OFF, S_BRIGHTNESS, S_WIFI, S_WIFI_FORGET, S_NONE, S_CONNECTED, S_CONNECTING, S_FAILED, S_MENU_HINT, S_NETWORKS, S_SCANNING, S_NO_NETWORKS, S_NET_HINT, S_PASSWORD, S_PASS_HINT, S_PC_NOTE, S_BROADCAST, S_WEEKLY, S_THIS_WEEK, S_LAST_WEEK, S_TOP_DAY, S_TOP_PROJECT, S_MODELS, S_BUDGET, S_SCREEN, S_NEVER, S_FOCUS, S_BREAK, S_POMO_OFF, S_DONE, S_ERROR, S_GAME_OVER, S_GAME_HINT, S_GAME_BEST, S_PET_HINT3, S_IDLE_FOR, S_COUNT};
 static const char *const STRINGS[S_COUNT][3] = {
     {"HOJE", "TODAY", "HOY"},
     {"SEMANA", "WEEK", "SEMANA"},
@@ -81,6 +81,25 @@ static const char *const STRINGS[S_COUNT][3] = {
     {"enter conectar  fn+` cancelar", "enter connect  fn+` cancel", "enter conectar  fn+` cancelar"},
     {"Conecte a USB para avisar o PC", "Plug USB to tell the PC", "Conecta USB para avisar al PC"},
     {"PC transmite", "PC broadcast", "PC transmite"},
+    {"SEMANA x ANTERIOR", "WEEK vs PREVIOUS", "SEMANA vs ANTERIOR"},
+    {"Esta: ", "This: ", "Esta: "},
+    {"Anterior: ", "Previous: ", "Anterior: "},
+    {"Maior dia: ", "Top day: ", "Mayor dia: "},
+    {"Projeto: ", "Project: ", "Proyecto: "},
+    {"MODELOS HOJE", "MODELS TODAY", "MODELOS HOY"},
+    {"Orcamento: ", "Budget: ", "Presupuesto: "},
+    {"Apagar tela", "Screen off", "Apagar pantalla"},
+    {"nunca", "never", "nunca"},
+    {"FOCO", "FOCUS", "FOCO"},
+    {"PAUSA", "BREAK", "PAUSA"},
+    {"Pomodoro off", "Pomodoro off", "Pomodoro off"},
+    {"tarefa pronta!", "task done!", "tarea lista!"},
+    {"ops, falhou", "oops, failed", "uy, fallo"},
+    {"FIM! pontos: ", "GAME OVER: ", "FIN! puntos: "},
+    {"tecla pula  ` sai", "key jumps  ` exit", "tecla salta  ` sale"},
+    {"recorde ", "best ", "record "},
+    {"s dormir  j jogar  g sair", "s sleep  j game  g exit", "s dormir  j jugar  g salir"},
+    {"sem atividade: %u min", "idle: %u min", "sin actividad: %u min"},
 };
 static const char *const LANGUAGES[] = {"Portugues", "English", "Espanol"};
 
@@ -103,7 +122,7 @@ static const Theme THEMES[] = {
 static const int THEME_COUNT = 10;
 
 struct Row {
-    String name, state;
+    String name, state, tool;
     uint64_t value = 0;
 };
 
@@ -116,6 +135,12 @@ struct Data {
     uint8_t heat[28] = {};
     Row sessions[4], projects[4];
     int sessionCount = 0, projectCount = 0;
+    uint64_t prevWeek = 0, topDay = 0, modelTokens[3] = {};
+    float budget = 0;
+    uint32_t idleMin = 0;
+    String topDayName, modelNames[3];
+    int modelCount = 0;
+    uint32_t evDone = 0, evError = 0;
     String clock = "--:--", date, model = "-", agent = "off", alert, pendingId, pendingTool, pendingDetail, pendingDir;
 } data;
 
@@ -152,7 +177,18 @@ int view = 0, themeIndex = 0, mascotIndex = 0;
 String toast;
 uint32_t toastUntil = 0;
 String prevAgent = "off", prevAlert, prevPending;
-const int VIEW_COUNT = 6;
+const int VIEW_COUNT = 8;
+int reactType = 0;  // 1 tarefa pronta, 2 falha
+uint32_t reactUntil = 0, lastKey = 0, pomoEnd = 0;
+int pomoState = 0;  // 0 desligado, 1 foco, 2 pausa
+int screenOffIndex = 1;
+bool screenOff = false;
+static const uint16_t SCREEN_MINUTES[] = {1, 5, 15, 0};
+bool gameOn = false, gameOver = false;
+float gameY = 0, gameV = 0, gameObs = 240;
+int gameScore = 0, gameBest = 0, gameObsH = 14;
+uint32_t gameLast = 0;
+void wakeScreen();
 
 // Bichinho: valores de 0 a 100. Ele nunca morre; só fica triste até receber atenção.
 struct Pet {
@@ -173,6 +209,7 @@ const char *tr(Str id) { return STRINGS[id][language]; }
 extern int settingsMode;
 void renderSettings();
 void petSync(uint64_t now, uint64_t day);
+int petLevel();
 void renderPet();
 
 const Theme &theme() { return THEMES[themeIndex]; }
@@ -232,9 +269,16 @@ void applyLine(const String &line, bool fromUsb) {
         usbDay = doc["d"];
         usbCostDay = doc["cd"];
         petSync(doc["ts"] | 0ULL, usbDay);
-        // Sem escolha feita aqui, vale o que estiver configurado no PC.
-        if (prefs.isKey("bcast") && !doc["wb"].isNull() && (doc["wb"] | false) != prefs.getBool("bcast", false)) {
-            Serial.printf("B %d\n", prefs.getBool("bcast", false) ? 1 : 0);
+        if (!doc["wb"].isNull()) {
+            bool pcValue = doc["wb"] | false;
+            bool wanted = prefs.getBool("bcast", false);
+            if (pcValue == wanted) {
+                if (prefs.getBool("bcastPend", false)) prefs.putBool("bcastPend", false);
+            } else if (prefs.getBool("bcastPend", false)) {
+                Serial.printf("B %d\n", wanted ? 1 : 0);
+            } else {
+                prefs.putBool("bcast", pcValue);  // mudou no PC: o aparelho acompanha
+            }
         }
     }
     data.clock = doc["t"] | "--:--";
@@ -269,6 +313,7 @@ void applyLine(const String &line, bool fromUsb) {
         Row &r = data.sessions[data.sessionCount++];
         r.name = s["n"] | "?";
         r.state = s["st"] | "";
+        r.tool = s["tool"] | "";
     }
     data.projectCount = 0;
     for (JsonObject p : doc["pr"].as<JsonArray>()) {
@@ -293,6 +338,34 @@ void applyLine(const String &line, bool fromUsb) {
     lastUsb = millis();
     lastRx = millis();
     received = true;
+    data.prevWeek = doc["wp"];
+    data.budget = doc["bud"];
+    data.idleMin = doc["ia"];
+    data.topDay = doc["td"];
+    data.topDayName = doc["tdn"] | "";
+    data.modelCount = 0;
+    for (JsonObject m : doc["ml"].as<JsonArray>()) {
+        if (data.modelCount == 3) break;
+        data.modelNames[data.modelCount] = m["n"] | "?";
+        data.modelTokens[data.modelCount++] = m["v"];
+    }
+    uint32_t done = doc["ed"], failed = doc["ee"];
+    // O primeiro pacote só define a referência: reação é para o que acontece agora.
+    if (data.evDone && done > data.evDone) {
+        reactType = 1;
+        reactUntil = millis() + 3000;
+        pet.joy = min(100.0f, pet.joy + 1);
+        beep(1500, 60);
+    }
+    if (data.evError && failed > data.evError) {
+        reactType = 2;
+        reactUntil = millis() + 3000;
+        beep(300, 120);
+    }
+    data.evDone = done;
+    data.evError = failed;
+    if (newId.length() && newId != prevPending) wakeScreen();
+    if (data.agent == "waiting" && prevAgent != "waiting") wakeScreen();
     if (data.agent == "waiting" && prevAgent != "waiting") beep(1800, 200);
     if (data.alert.length() && data.alert != prevAlert) beep(600, 400);
     if (data.pendingId.length() && data.pendingId != prevPending) beep(2200, 300);
@@ -308,8 +381,9 @@ void drawMascot(int x, int y, int px, bool stale) {
     bool working = mascotForce ? mascotForce == 2 : !sleeping && data.agent == "working";
     bool waiting = mascotForce ? mascotForce == 3 : !sleeping && data.agent == "waiting";
     bool panic = !mascotForce && !sleeping && data.alert.length();
-    if (waiting) y -= frame * px * 2;
-    if (panic) x += (t / 80) % 2 ? 2 : -2;
+    bool reacting = !mascotForce && !sleeping && millis() < reactUntil;
+    if (waiting || (reacting && reactType == 1)) y -= frame * px * 2;
+    if (panic || (reacting && reactType == 2)) x += (t / 80) % 2 ? 2 : -2;
     bool blink = (t % 4000) < 180;
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 12; c++) {
@@ -331,8 +405,21 @@ void drawMascot(int x, int y, int px, bool stale) {
             canvas.fillRect(rx, ry, px, px, color);
         }
     }
+    // Acessórios liberados por nível.
+    int level = petLevel();
+    if (level >= 5) {
+        for (int i = 0; i < 3; i++) canvas.fillTriangle(x + (3 + i * 2) * px, y, x + (5 + i * 2) * px, y, x + (4 + i * 2) * px, y - 2 * px, 0xFEA0);
+    } else if (level >= 2) {
+        canvas.fillRect(x + 3 * px, y - 2 * px, 6 * px, 2 * px, 0x2104);
+        canvas.fillRect(x + 2 * px, y - px / 2, 8 * px, max(1, px / 2), 0x2104);
+    }
+    if (level >= 3 && !sleeping) canvas.drawRect(x + 2 * px, y + px / 2, 8 * px, 2 * px, 0x8410);
     canvas.setFont(&fonts::Font2);
     canvas.setTextDatum(top_left);
+    if (reacting) {
+        canvas.setTextColor(reactType == 1 ? theme().accent : theme().warn);
+        canvas.drawString(reactType == 1 ? "*" : "x", x + 12 * px, y);
+    }
     if (sleeping) {
         canvas.setTextColor(theme().dim);
         canvas.drawString(frame ? "z" : "zZ", x + 12 * px - 4, y - 8);
@@ -364,6 +451,14 @@ void header(const char *title, bool stale) {
     if (paused) right = tr(S_PAUSED);
     if (muted) right = String(tr(S_MUTED)) + " " + right;
     if (millis() < toastUntil) right = toast;
+    if (pomoState && millis() < pomoEnd) {
+        uint32_t left = (pomoEnd - millis()) / 1000;
+        char pomo[20];
+        snprintf(pomo, sizeof pomo, "%s %02u:%02u", pomoState == 1 ? tr(S_FOCUS) : tr(S_BREAK), left / 60, left % 60);
+        canvas.setTextColor(theme().accent);
+        canvas.drawString(pomo, 80, 2);
+        canvas.setTextColor(stale ? theme().warn : theme().dim);
+    }
     canvas.drawString(right, 236, 2);
     canvas.setTextDatum(top_left);
 }
@@ -431,11 +526,22 @@ void renderSessions(bool stale) {
         canvas.fillCircle(10, y + 8, 4, color);
         canvas.setTextColor(theme().fg);
         canvas.drawString(data.sessions[i].name, 22, y);
+        canvas.setTextColor(theme().dim);
+        if (st == "working") canvas.drawString(data.sessions[i].tool, 128, y);
         canvas.setTextDatum(top_right);
         canvas.setTextColor(color);
         canvas.drawString(st == "waiting" ? tr(S_ST_WAITING) : st == "working" ? tr(S_ST_WORKING) : tr(S_ST_IDLE), 236, y);
         canvas.setTextDatum(top_left);
     }
+}
+
+void renderIdle() {
+    if (!data.idleMin) return;
+    char idle[32];
+    snprintf(idle, sizeof idle, tr(S_IDLE_FOR), data.idleMin);
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextColor(theme().dim);
+    canvas.drawString(idle, 4, 118);
 }
 
 void renderStats(bool stale) {
@@ -453,6 +559,99 @@ void renderStats(bool stale) {
         int x = 4 + (i % 14) * 16, y = 86 + (i / 14) * 22;
         canvas.fillRect(x, y, 14, 20, LEVELS[min<int>(data.heat[i], 4)]);
     }
+}
+
+void renderWeekly(bool stale) {
+    header(tr(S_WEEKLY), stale);
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextColor(theme().fg);
+    canvas.drawString(String(tr(S_THIS_WEEK)) + human(data.week), 4, 24);
+    canvas.drawString(String(tr(S_LAST_WEEK)) + human(data.prevWeek), 4, 44);
+    if (data.prevWeek) {
+        int change = ((double)data.week - (double)data.prevWeek) * 100 / data.prevWeek;
+        canvas.setTextDatum(top_right);
+        canvas.setTextColor(change > 0 ? theme().warn : theme().accent);
+        canvas.drawString((change > 0 ? "+" : "") + String(change) + "%", 236, 34);
+        canvas.setTextDatum(top_left);
+    }
+    canvas.setTextColor(theme().dim);
+    canvas.drawString(String(tr(S_TOP_DAY)) + data.topDayName + " " + human(data.topDay), 4, 74);
+    if (data.projectCount) canvas.drawString(String(tr(S_TOP_PROJECT)) + data.projects[0].name, 4, 94);
+}
+
+void renderModels(bool stale) {
+    header(tr(S_MODELS), stale);
+    canvas.setFont(&fonts::Font2);
+    uint64_t top = 1;
+    for (int i = 0; i < data.modelCount; i++) top = max(top, data.modelTokens[i]);
+    for (int i = 0; i < data.modelCount; i++) {
+        int y = 22 + i * 26;
+        canvas.setTextColor(theme().fg);
+        canvas.drawString(data.modelNames[i], 4, y);
+        canvas.setTextDatum(top_right);
+        canvas.drawString(human(data.modelTokens[i]), 236, y);
+        canvas.setTextDatum(top_left);
+        canvas.fillRect(4, y + 17, data.modelTokens[i] * 232 / top, 4, theme().accent);
+    }
+    canvas.setTextColor(data.alert == "custo" ? theme().warn : theme().dim);
+    canvas.drawString(String(tr(S_BUDGET)) + money(data.costDay) + (data.budget > 0 ? " / " + money(data.budget) : ""), 4, 112);
+}
+
+void gameStart() {
+    gameOn = true;
+    gameOver = false;
+    gameY = gameV = 0;
+    gameObs = 240;
+    gameObsH = 14;
+    gameScore = 0;
+    gameLast = millis();
+}
+
+void gameEnd() {
+    gameOver = true;
+    if (gameScore > gameBest) {
+        gameBest = gameScore;
+        prefs.putInt("gameBest", gameBest);
+    }
+    pet.joy = min(100.0f, pet.joy + min(gameScore, 30));
+    pet.energy = max(0.0f, pet.energy - 5);
+    petDirty = true;
+    beep(300, 200);
+}
+
+void renderGame() {
+    uint32_t now = millis();
+    float dt = min((now - gameLast) / 1000.0f, 0.1f);
+    gameLast = now;
+    const int ground = 112, x = 20, w = 24, h = 16;
+    if (!gameOver) {
+        gameV += 900 * dt;
+        gameY = min(0.0f, gameY + gameV * dt);
+        if (gameY == 0) gameV = 0;
+        gameObs -= (100 + gameScore * 4) * dt;
+        if (gameObs < -10) {
+            gameObs = 240 + random(0, 60);
+            gameObsH = random(10, 22);
+            gameScore++;
+        }
+        if (gameObs < x + w - 4 && gameObs + 8 > x + 4 && -gameY < gameObsH - 2) gameEnd();
+    }
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextDatum(top_left);
+    canvas.setTextColor(theme().accent);
+    canvas.drawString(String(gameScore), 4, 2);
+    canvas.setTextDatum(top_right);
+    canvas.setTextColor(theme().dim);
+    canvas.drawString(String(tr(S_GAME_BEST)) + gameBest, 236, 2);
+    canvas.setTextDatum(top_left);
+    canvas.drawFastHLine(0, ground, 240, theme().dim);
+    canvas.fillRect(gameObs, ground - gameObsH, 8, gameObsH, theme().warn);
+    mascotForce = gameOver ? 4 : 2;
+    drawMascot(x, ground - h + gameY, 2, false);
+    mascotForce = 0;
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextColor(gameOver ? theme().warn : theme().dim);
+    canvas.drawString(gameOver ? String(tr(S_GAME_OVER)) + gameScore : String(tr(S_GAME_HINT)), 4, 117);
 }
 
 void renderPending() {
@@ -488,15 +687,21 @@ void render() {
     } else if (settingsMode) {
         renderSettings();
     } else if (petOpen) {
-        renderPet();
+        if (gameOn) renderGame();
+        else renderPet();
     } else if (view < 3) {
         renderTotals(view, stale);
     } else if (view == 3) {
         renderProjects(stale);
     } else if (view == 4) {
         renderSessions(stale);
-    } else {
+        renderIdle();
+    } else if (view == 5) {
         renderStats(stale);
+    } else if (view == 6) {
+        renderWeekly(stale);
+    } else {
+        renderModels(stale);
     }
     canvas.pushSprite(0, 0);
 }
@@ -576,6 +781,9 @@ void petKey(char c) {
         if (pet.food >= 95) return petSay(tr(S_FULL), 0, 0);
         pet.food = min(100.0f, pet.food + 25);
         petSay(tr(S_YUM), 1, 900);
+    } else if (c == 'j') {
+        if (pet.energy < 15) return petSay(tr(S_EXHAUSTED), 0, 0);
+        gameStart();
     } else if (c == 'h') {
         pet.joy = min(100.0f, pet.joy + 10);
         petSay(tr(S_LOVE), 2, 1400);
@@ -631,21 +839,22 @@ void renderPet() {
     canvas.setFont(&fonts::Font0);
     canvas.setTextColor(theme().dim);
     canvas.drawString(tr(S_PET_HINT1), 4, 110);
-    canvas.drawString(tr(S_PET_HINT2), 4, 122);
+    canvas.drawString(tr(S_PET_HINT3), 4, 122);
 }
 
 // Configurações: 0 fechada, 1 menu, 2 lista de redes, 3 senha.
 int settingsMode = 0, menuIndex = 0, netIndex = 0, netCount = 0, brightness = 2;
-static const int MENU_ITEMS = 8;
+static const int MENU_ITEMS = 9;
 String netNames[6], wifiPassword;
 bool netOpen[6], scanning = false;
 static const uint8_t BRIGHTNESS[] = {25, 45, 70, 110, 180};
 
 void startWifi();
 
-// Transmitir na rede é uma escolha explícita. O desejo fica salvo e é reenviado até o PC confirmar.
+// Transmitir na rede é uma escolha explícita: reenviada só até o PC confirmar. Depois, o PC manda.
 void setBroadcast(bool enabled) {
     prefs.putBool("bcast", enabled);
+    prefs.putBool("bcastPend", true);
 }
 
 void connectTo(const String &ssid, const String &password) {
@@ -733,6 +942,10 @@ void settingsKey(char c) {
                 udpReady = false;
                 setBroadcast(false);
                 break;
+            case 8:
+                screenOffIndex = (screenOffIndex + 1) % 4;
+                prefs.putInt("screenOff", screenOffIndex);
+                break;
             case 7:
                 setBroadcast(!prefs.getBool("bcast", false));
                 break;
@@ -792,10 +1005,11 @@ void renderSettings() {
     canvas.drawString(tr(S_SETTINGS), 4, 2);
     String levels(brightness + 1);
     levels += "/5";
-    const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET), tr(S_BROADCAST)};
+    const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET), tr(S_BROADCAST), tr(S_SCREEN)};
     String values[] = {LANGUAGES[language], theme().name, MASCOT_COLORS[mascotIndex].name[language],
                        muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), "",
-                       prefs.getBool("bcast", false) ? tr(S_ON) : tr(S_OFF)};
+                       prefs.getBool("bcast", false) ? tr(S_ON) : tr(S_OFF),
+                       SCREEN_MINUTES[screenOffIndex] ? String(SCREEN_MINUTES[screenOffIndex]) + " min" : String(tr(S_NEVER))};
     int first = max(0, menuIndex - 6);
     for (int i = first; i < MENU_ITEMS && i < first + 7; i++) {
         int y = 19 + (i - first) * 14;
@@ -839,8 +1053,20 @@ void handleKey(char c) {
         }
         return;
     }
+    if (gameOn) {
+        if (c == '`' || c == 27) gameOn = false;
+        else if (gameOver) { if (c == '\n' || c == ' ') gameStart(); }
+        else if (gameY == 0) gameV = -310;
+        return;
+    }
     if (settingsMode) {
         settingsKey(c);
+        return;
+    }
+    if (c == 'r' && !petOpen) {
+        pomoState = pomoState ? 0 : 1;
+        pomoEnd = millis() + 25 * 60000UL;
+        if (!pomoState) showToast(tr(S_POMO_OFF));
         return;
     }
     if (c == 'o') {
@@ -880,6 +1106,14 @@ void handleKey(char c) {
     }
 }
 
+void wakeScreen() {
+    lastKey = millis();
+    if (screenOff) {
+        screenOff = false;
+        M5Cardputer.Display.setBrightness(BRIGHTNESS[brightness]);
+    }
+}
+
 void startWifi() {
     String ssid = prefs.getString("ssid", "");
     if (!ssid.length()) return;
@@ -916,6 +1150,8 @@ void setup() {
     themeIndex = constrain(prefs.getInt("theme", 0), 0, THEME_COUNT - 1);
     mascotIndex = constrain(prefs.getInt("mascot", 0), 0, MASCOT_COLOR_COUNT - 1);
     muted = prefs.getBool("muted", false);
+    screenOffIndex = constrain(prefs.getInt("screenOff", 1), 0, 3);
+    gameBest = prefs.getInt("gameBest", 0);
     petLoad();
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     sdReady = SD.begin(SD_CS, SPI, 20000000);
@@ -926,6 +1162,10 @@ void loop() {
     M5Cardputer.update();
     if (M5Cardputer.Keyboard.isChange() && M5Cardputer.Keyboard.isPressed()) {
         auto state = M5Cardputer.Keyboard.keysState();
+        // Com a tela apagada, a tecla só acorda: não pode responder a nada às cegas.
+        bool wasOff = screenOff;
+        wakeScreen();
+        if (wasOff) return;
         for (char c : state.word) handleKey(state.fn && c == '`' ? 27 : c);
         if (state.enter) handleKey('\n');
         if (state.del) handleKey('\b');
@@ -940,6 +1180,21 @@ void loop() {
         }
     }
     pollScan();
+    if (pomoState && millis() >= pomoEnd) {
+        if (pomoState == 1) {
+            pet.joy = min(100.0f, pet.joy + 5);
+            petDirty = true;
+        }
+        pomoState = 3 - pomoState;
+        pomoEnd = millis() + (pomoState == 1 ? 25 : 5) * 60000UL;
+        wakeScreen();
+        beep(1000, 300);
+    }
+    uint16_t offAfter = SCREEN_MINUTES[screenOffIndex];
+    if (!screenOff && offAfter && millis() - lastKey > offAfter * 60000UL) {
+        screenOff = true;
+        M5Cardputer.Display.setBrightness(0);
+    }
     if (WiFi.status() == WL_CONNECTED) {
         if (!udpReady) udpReady = udp.begin(UDP_PORT);
         int size = udp.parsePacket();
@@ -959,9 +1214,9 @@ void loop() {
     // Grava com folga: a flash se desgasta a cada escrita.
     if (petDirty && millis() - petSaved > 600000) petSave();
     static uint32_t lastDraw = 0;
-    if (millis() - lastDraw > 80) {
+    if (!screenOff && millis() - lastDraw > 80) {
         render();
         lastDraw = millis();
     }
-    delay(5);
+    delay(screenOff ? 30 : 5);
 }

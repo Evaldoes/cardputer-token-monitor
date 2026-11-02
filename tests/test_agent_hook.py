@@ -20,6 +20,13 @@ def test_record_e_session_end(tmp_path, monkeypatch):
     assert not f.exists()
 
 
+def test_eventos_de_reacao(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_hook, "STATE", tmp_path)
+    agent_hook.record({"session_id": "a", "hook_event_name": "Stop"})
+    agent_hook.record({"session_id": "a", "hook_event_name": "PostToolUseFailure"})
+    assert (tmp_path / "event_done").exists() and (tmp_path / "event_error").exists()
+
+
 def test_session_id_nao_escapa_da_pasta(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_hook, "STATE", tmp_path)
     agent_hook.record({"session_id": "../../evil", "hook_event_name": "Stop"})

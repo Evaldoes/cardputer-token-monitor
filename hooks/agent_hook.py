@@ -32,7 +32,7 @@ def write_private(path, text):
 
 
 def state_for(event, data):
-    if event in ("UserPromptSubmit", "PreToolUse", "PostToolUse"):
+    if event in ("UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure"):
         return "working"
     if event in ("Stop", "SessionStart"):
         return "idle"
@@ -50,6 +50,10 @@ def record(data):
         return
     path = STATE / "sessions" / f"{sid}.json"
     event = data.get("hook_event_name", "")
+    marker = {"Stop": "done", "PostToolUseFailure": "error"}.get(event)
+    if marker:
+        private_dir(STATE)
+        (STATE / f"event_{marker}").touch()
     if event == "SessionEnd":
         path.unlink(missing_ok=True)
         return

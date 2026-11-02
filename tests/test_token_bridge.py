@@ -188,6 +188,19 @@ def test_resumo_informa_transmissao_so_pela_usb():
     assert s["wb"] is True and "wb" not in public_view(s)
 
 
+def test_orcamento_modelos_e_semana_anterior():
+    e = Entry(NOW, "claude-opus-5-5", "s", 10, 0, 6.0, "p")
+    old = Entry(NOW - timedelta(days=8), "claude-opus-5-5", "s", 7, 0, 0, "p")
+    s = summarize([e, old], NOW, config={"budget_daily_usd": 5})
+    assert s["al"] == "custo" and s["ml"] == [{"n": "Opus 5.5", "v": 10}] and s["wp"] == 7
+    assert s["td"] == 10 and s["tdn"] == "01/11" and s["ia"] == 0
+
+
+def test_wifi_nao_expoe_modelos_nem_eventos():
+    s = {**summarize([Entry(NOW, "claude-opus-5-5", "s", 1, 0)], NOW), "ed": 1, "ee": 1}
+    assert not {"ml", "tdn", "ed", "ee", "ia"} & set(public_view(s))
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}

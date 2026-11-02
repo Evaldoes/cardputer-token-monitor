@@ -9,7 +9,7 @@ from pathlib import Path
 
 HOOK = Path(__file__).resolve().parent.parent / "hooks" / "agent_hook.py"
 SETTINGS = Path.home() / ".claude" / "settings.json"
-STATUS_EVENTS = ["SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop"]
+STATUS_EVENTS = ["SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop"]
 
 
 def strip(settings):

@@ -18,7 +18,7 @@ RETENTION = timedelta(days=400)
 BLOCK = timedelta(hours=5)
 ESPRESSIF_VID = 0x303A
 UDP_PORT = 47474
-DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False, "device_serial": ""}
+DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False, "device_serial": "", "budget_daily_usd": 0}
 
 # US$ por MTok: entrada, saída, leitura de cache. Escrita: 1,25x (5 min) ou 2x (1 h) a entrada.
 PRICES = {
@@ -188,14 +188,31 @@ def summarize(entries, now, sessions=(), pending=None, config=None):
             projects[e.project] = projects.get(e.project, 0) + e.tokens
     top = sorted(projects.items(), key=lambda kv: -kv[1])[:4]
     goal = config["goal_daily_tokens"]
+    budget = config["budget_daily_usd"]
+    day_cost = sum(e.cost for e in today)
     alert = ""
-    if goal and day_total >= goal:
+    if budget and day_cost >= budget:
+        alert = "custo"
+    elif goal and day_total >= goal:
         alert = "meta"
     elif remaining and remaining <= config["window_warn_minutes"]:
         alert = "janela"
     states = [s["st"] for s in sessions]
     agent = next((a for a in ("waiting", "working", "idle") if a in states), "off")
+    models = {}
+    for e in today:
+        label = model_label(e.model)
+        models[label] = models.get(label, 0) + e.tokens
+    per_day = {}
+    for e in week:
+        day = e.ts.astimezone(now.tzinfo).strftime("%d/%m")
+        per_day[day] = per_day.get(day, 0) + e.tokens
+    top_day = max(per_day.items(), key=lambda kv: kv[1], default=("", 0))
+    previous = sum(e.tokens for e in entries if week_start - timedelta(days=7) <= e.ts < week_start)
     return {
+        "wp": previous, "td": top_day[1], "tdn": top_day[0], "bud": budget,
+        "ia": int((now - last.ts).total_seconds() // 60) if last else 0,
+        "ml": [{"n": k, "v": v} for k, v in sorted(models.items(), key=lambda kv: -kv[1])[:3]],
         "t": now.strftime("%H:%M"), "ts": int(now.timestamp()), "dt": now.strftime("%Y-%m-%d"),
         "d": day_total, "dc": sum(e.cache_read for e in today),
         "w": sum(e.tokens for e in week), "wc": sum(e.cache_read for e in week),
@@ -212,9 +229,17 @@ def summarize(entries, now, sessions=(), pending=None, config=None):
     }
 
 
+def event_time(name, state_dir=STATE):
+    """Horário do último evento registrado pelos hooks; 0 se nunca houve."""
+    try:
+        return int((state_dir / f"event_{name}").stat().st_mtime)
+    except OSError:
+        return 0
+
+
 def public_view(summary):
     """O que pode circular na rede local: só totais, nunca nomes nem pedidos de permissão."""
-    return {k: v for k, v in summary.items() if k not in ("ss", "pr", "p", "m", "wb")}
+    return {k: v for k, v in summary.items() if k not in ("ss", "pr", "p", "m", "wb", "ml", "tdn", "ed", "ee", "ia")}
 
 
 class Reader:
@@ -364,6 +389,7 @@ def main():
         try:
             if time.time() >= next_send or key != last_key:
                 summary = summarize(reader.scan(now), now, sessions, pending, config)
+                summary["ed"], summary["ee"] = event_time("done"), event_time("error")
                 payload = json.dumps(summary, separators=(",", ":"))
                 if args.once:
                     print(payload)
