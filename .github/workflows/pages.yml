@@ -1,0 +1,26 @@
+name: Publica o instalador web
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/**", "site/**", ".github/workflows/pages.yml"]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uvx --from platformio pio run -d firmware
+      - run: |
+          b=firmware/.pio/build/cardputer
+          app0=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
+          uvx esptool --chip esp32s3 merge-bin -o site/firmware-merged.bin \
+            0x0 $b/bootloader.bin 0x8000 $b/partitions.bin 0xe000 "$app0" 0x10000 $b/firmware.bin
+          cp docs/mascot.png site/
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: site}
+      - uses: actions/deploy-pages@v4

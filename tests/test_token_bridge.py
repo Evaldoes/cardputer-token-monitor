@@ -1,4 +1,6 @@
 import json
+import os
+import time
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -83,3 +85,89 @@ def test_reader_nao_conta_duas_vezes_e_le_incremental(tmp_path):
     with f.open("a") as h:
         h.write(line("m2", ts=novo) + "\n" + line("m3", ts=novo)[:20])  # última linha incompleta
     assert len(r.scan(now)) == 2
+
+
+from token_bridge import handle_device_line, public_view, read_pending, read_sessions, records, usage_cost
+
+
+def test_custo_opus_5_5():
+    u = {"input_tokens": 1_000_000, "output_tokens": 1_000_000, "cache_read_input_tokens": 1_000_000,
+         "cache_creation_input_tokens": 2_000_000, "cache_creation": {"ephemeral_1h_input_tokens": 1_000_000}}
+    # 4 + 20 + 0,20 + 1h: 8 + 5min: 5
+    assert abs(usage_cost("claude-opus-5-5", u) - 37.2) < 1e-9
+
+
+def test_custo_modelo_desconhecido_e_modo_rapido():
+    u = {"output_tokens": 1_000_000}
+    assert usage_cost("modelo-novo", u) == 0
+    assert usage_cost("claude-opus-5-5", {**u, "speed": "fast"}) == 40
+
+
+def test_previsao_e_alertas():
+    es = [entry(NOW - timedelta(minutes=30), 600)]
+    s = summarize(es, NOW)
+    assert s["f"] == 600 + 10 * 120
+    assert summarize(es, NOW, config={"goal_daily_tokens": 500})["al"] == "meta"
+    assert summarize(es, NOW)["al"] == ""
+    assert summarize([entry(NOW - timedelta(hours=4, minutes=20))], NOW)["al"] == "janela"
+
+
+def test_recordes_e_sequencia():
+    es = [entry(NOW - timedelta(days=d), 100 * (d + 1)) for d in (0, 1, 2, 5)]
+    r = records(es, NOW)
+    assert r["st"] == 3 and r["rec"] == 600 and len(r["hm"]) == 28 and r["hm"][27] > 0 and r["hm"][26] > 0
+
+
+def test_sequencia_nao_quebra_antes_do_dia_acabar():
+    assert records([entry(NOW - timedelta(days=1))], NOW)["st"] == 1
+    assert records([entry(NOW - timedelta(days=2))], NOW)["st"] == 0
+
+
+def test_ranking_de_projetos():
+    es = [Entry(NOW, "m", "s", 5, 0, 0, "a"), Entry(NOW, "m", "s", 9, 0, 0, "b")]
+    assert [p["n"] for p in summarize(es, NOW)["pr"]] == ["b", "a"]
+
+
+def test_sessoes_prioridade_e_estado_velho(tmp_path):
+    d = tmp_path / "sessions"
+    d.mkdir()
+    (d / "a.json").write_text('{"state":"working","cwd":"/x/a"}')
+    (d / "b.json").write_text('{"state":"waiting","cwd":"/x/b"}')
+    (d / "c.json").write_text('{"state":"working","cwd":"/x/c"}')
+    os.utime(d / "c.json", (1, time.time() - 3600))
+    s = read_sessions(tmp_path)
+    assert s[0]["n"] == "b" and {x["n"]: x["st"] for x in s}["c"] == "idle"
+    assert summarize([], NOW, s)["a"] == "waiting"
+
+
+def test_pendente_expirado_some(tmp_path):
+    d = tmp_path / "pending"
+    d.mkdir()
+    (d / "x.json").write_text(json.dumps({"id": "x", "expires": time.time() - 1}))
+    assert read_pending(tmp_path) is None
+    (d / "y.json").write_text(json.dumps({"id": "y", "tool": "Bash", "expires": time.time() + 9}))
+    assert read_pending(tmp_path)["id"] == "y"
+
+
+def test_wifi_nao_expoe_nomes_nem_aprovacao():
+    s = summarize([Entry(NOW, "claude-opus-5-5", "s", 5, 0, 0, "segredo")], NOW,
+                  [{"n": "segredo", "st": "waiting", "tool": "Bash"}], {"id": "1", "tool": "Bash", "d": "rm"})
+    text = json.dumps(public_view(s))
+    assert "segredo" not in text and "rm" not in text and '"p"' not in text
+
+
+def test_linha_do_aparelho(tmp_path):
+    rid = "a" * 32
+    handle_device_line(f"A {rid} y", {}, tmp_path)
+    assert (tmp_path / "responses" / rid).read_text() == "y"
+    handle_device_line("A ../../x y", {}, tmp_path)
+    assert len(list((tmp_path / "responses").iterdir())) == 1
+    assert handle_device_line("P", {}, tmp_path) == "pause"
+
+
+def test_comando_so_roda_se_listado(tmp_path):
+    calls = []
+    cfg = {"commands": {"1": ["echo", "oi"]}}
+    handle_device_line("C 1", cfg, tmp_path, calls.append)
+    handle_device_line("C 2", cfg, tmp_path, calls.append)
+    assert calls == [["echo", "oi"]]

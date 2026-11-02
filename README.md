@@ -8,18 +8,33 @@
 
 ## Features
 
-- **Today, last 7 days and current session:** press any key to switch views
-- **Burn rate:** tokens per minute over the last 5 minutes
-- **12-hour chart:** usage per hour
-- **5-hour window:** estimated time remaining
-- **Cache reads shown separately:** so they don't drown out the main total
-- **Stale data warning:** the screen says so when the PC stops sending
-- **Private by design:** no Wi-Fi, no API key, no account; only totals leave your PC, over the cable
+- **Pixel mascot:** walks while Claude works, jumps when it needs you, panics on alerts, sleeps when idle
+- **Agent status:** working, idle or waiting for permission, with a beep when it needs you
+- **Approve from the device (opt-in):** press `y` twice to allow, `n` to deny
+- **Estimated cost:** today, week and session at API list prices
+- **Burn rate and forecast:** tokens per minute and a 2-hour projection
+- **Alerts:** daily token goal and 5-hour window running out
+- **Project ranking and parallel sessions**
+- **Streak, record and 28-day heatmap**
+- **Themes:** Claude, Retro and Matrix
+- **USB or Wi-Fi:** Wi-Fi is display-only and sends totals only
+- **microSD history:** daily totals in `token-history.csv` (FAT32)
+
+## Keys
+
+| Key | Action |
+| --- | --- |
+| Any other key / `,` | Next / previous view |
+| `t` | Next theme |
+| `m` | Mute |
+| `p` | Pause updates |
+| `1`-`9` | Run a command from your config |
+| `y` `y` / `n` | Approve / deny a pending request |
 
 ## Requirements
 
 - M5Stack Cardputer (ESP32-S3)
-- Linux PC running [Claude Code](https://claude.com/claude-code); other systems are untested
+- PC running [Claude Code](https://claude.com/claude-code). Developed on Linux; macOS and Windows are untested
 - [uv](https://docs.astral.sh/uv/) and a USB-C data cable
 
 ## Quick start
@@ -37,7 +52,7 @@ uvx esptool --port /dev/ttyACM0 read-flash 0 0x800000 backup/firmware-original-8
 uv run --with pyserial bridge/token_bridge.py
 ```
 
-Use `--port` if your device isn't on `/dev/ttyACM0`. To preview the data without a device, run `python3 bridge/token_bridge.py --once`.
+The bridge finds the device automatically; use `--port` to override it. To preview the data without a device, run `python3 bridge/token_bridge.py --once`.
 
 To restore your firmware:
 
@@ -46,6 +61,35 @@ uvx esptool --port /dev/ttyACM0 write-flash 0 backup/firmware-original-8MB.bin
 ```
 
 Never publish `backup/`: it may contain Wi-Fi passwords. It is already in `.gitignore`.
+
+## Optional setup
+
+```bash
+python3 scripts/install_hooks.py            # agent status (backs up ~/.claude/settings.json)
+python3 scripts/install_hooks.py --approve  # also approve from the device
+python3 scripts/install_hooks.py --remove   # undo
+./scripts/install_service.sh                # start on login (Linux, systemd)
+uv run --with pyserial bridge/token_bridge.py --wifi "MyNetwork"  # store Wi-Fi on the device
+```
+
+**About `--approve`:** each permission request first waits up to 25 s for the device, delaying the terminal prompt. With no answer, or with the bridge stopped, the decision goes back to the terminal; it never approves by default. Anyone holding the device can approve commands on your PC, so enable it only if that is acceptable.
+
+Config lives in `~/.config/cardputer-token-monitor.json`:
+
+```json
+{
+  "goal_daily_tokens": 2000000,
+  "window_warn_minutes": 30,
+  "wifi_broadcast": false,
+  "commands": {"1": ["notify-send", "Hello from the Cardputer"]}
+}
+```
+
+Commands run on your PC without a shell, and only those you list. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof the display, so they never carry project names or approvals.
+
+## Web installer
+
+After GitHub Pages is enabled, `.github/workflows/pages.yml` builds the firmware and publishes the installer from `site/` (Chrome or Edge).
 
 ## How it works
 
@@ -57,6 +101,8 @@ Never publish `backup/`: it may contain Wi-Fi passwords. It is already in `.giti
 
 - **Total:** input + output + cache creation. Cache reads appear separately.
 - **5h:** an estimate from your local logs, not your plan's real limit.
+- **Cost:** an estimate at list prices in `bridge/token_bridge.py`, not your bill. Unknown models count as $0.
+- **Forecast:** today so far plus the last hour's rate for up to 2 more hours.
 - **Scope:** Claude Code on this PC only, excluding claude.ai and other machines.
 - **No percentage of your plan limit:** the local logs used here don't provide it.
 
@@ -68,7 +114,7 @@ uvx pytest tests
 
 ## Contributing
 
-Issues and pull requests are welcome, especially Cardputer ADV reports, macOS and Windows support, and Wi-Fi mode.
+Issues and pull requests are welcome, especially Cardputer ADV, macOS and Windows reports.
 
 ## License
 
