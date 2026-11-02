@@ -471,12 +471,12 @@ systemctl --user start cardputer-token-monitor
 
 O anel de LEDs mostra o status: em movimento ao trabalhar, âmbar piscando ao aguardar, verde em tarefa concluída e vermelho em falha ou alerta.
 
-Ele não tem teclado, então fica sem minijogo, Pomodoro, Wi-Fi, teclas de atalho, som, temas e telas Semanal e Modelos. Ele mostra pedidos de permissão, mas a resposta é no terminal, então não use `--approve` com ele. Vários aparelhos podem ser pareados, mas conecte só um por vez.
+Ele tem todas as telas, bichinho, minijogo (clique pula, segurar sai), Pomodoro, som, temas, cores do mascote e histórico no microSD. Sem teclado, muda em dois pontos: o Wi-Fi é definido pelo PC com `uv run --with pyserial bridge/token_bridge.py --port /dev/ttyACM0 --wifi "MinhaRede"` (pare o serviço antes), e depois você liga PC transmite nas configurações; e não há teclas de atalho. Ele mostra pedidos de permissão, mas a resposta é no terminal, então não use `--approve` com ele. Vários aparelhos podem ser pareados, mas conecte só um por vez.
 
 ## Estado do projeto
 
 - **Testado em aparelho real (Linux):** mascote, totais, teclas, temas, telas de Projetos e Sessões, e status do agente pelos hooks.
-- **T-Embed, testado em aparelho real (Linux):** tela, botão giratório, clique e toque longo, tela do bichinho e anel de LEDs.
+- **T-Embed, testado em aparelho real (Linux):** tela, botão giratório, clique e toque longo, tela do bichinho e anel de LEDs. Som, minijogo, Pomodoro, temas, telas Semanal e Modelos, Wi-Fi e microSD ainda não foram confirmados.
 - **Ainda não confirmado em aparelho real:** bichinho, minijogo, acessórios, reações, Pomodoro, tempo limite da tela, telas Semanal e Modelos, configurações, idiomas, Wi-Fi, histórico no microSD, aprovação, teclas de atalho, instalação pelo navegador, Cardputer ADV, macOS e Windows.
 
 ## Desenvolvimento

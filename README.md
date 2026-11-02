@@ -471,12 +471,12 @@ systemctl --user start cardputer-token-monitor
 
 The LED ring shows status: moving for working, blinking amber for waiting, green for a finished task, red for a failure or alert.
 
-It has no keyboard, so it doesn't have the mini-game, Pomodoro, Wi-Fi, shortcut keys, sound, themes, or the Weekly and Models screens. It shows permission requests, but they must be answered in the terminal, so don't use `--approve` with it. Several devices can be paired, but connect only one at a time.
+It has all the screens, pet, mini-game (click jumps, hold exits), Pomodoro, sound, themes, mascot colors and microSD history. With no keyboard, it differs in two ways: set Wi-Fi from the PC with `uv run --with pyserial bridge/token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"` (stop the service first), then turn on PC broadcast in settings; and there are no shortcut keys. It shows permission requests, but they must be answered in the terminal, so don't use `--approve` with it. Several devices can be paired, but connect only one at a time.
 
 ## Project status
 
 - **Tested on a real device (Linux):** mascot, totals, keys, themes, Projects and Sessions screens, and agent status through hooks.
-- **T-Embed, tested on a real device (Linux):** screen, knob, click and hold, pet screen and LED ring.
+- **T-Embed, tested on a real device (Linux):** screen, knob, click and hold, pet screen and LED ring. Sound, mini-game, Pomodoro, themes, Weekly and Models screens, Wi-Fi and microSD are not yet confirmed.
 - **Not yet confirmed on a real device:** pet, mini-game, accessories, reactions, Pomodoro, screen timeout, Weekly and Models screens, settings, languages, Wi-Fi, microSD history, approval, shortcut keys, web installer, Cardputer ADV, macOS and Windows.
 
 ## Development
