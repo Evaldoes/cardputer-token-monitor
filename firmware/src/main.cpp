@@ -12,7 +12,7 @@ static const uint32_t CONFIRM_MS = 3000;
 static const int UDP_PORT = 47474;
 static const int SD_SCK = 40, SD_MISO = 39, SD_MOSI = 14, SD_CS = 12;
 
-enum Str {S_TODAY, S_WEEK, S_SESSION, S_WAITING_PC, S_NO_DATA, S_PAUSED, S_MUTED, S_FORECAST, S_PROJECTS, S_NO_PROJECTS, S_SESSIONS, S_NO_SESSIONS, S_ST_WAITING, S_ST_WORKING, S_ST_IDLE, S_RECORDS, S_STREAK, S_RECORD, S_GOAL, S_PERMISSION, S_SEE_TERMINAL, S_APPROVE_AGAIN, S_APPROVE_HINT, S_PET_TITLE, S_FOOD, S_ENERGY, S_JOY, S_PET_HINT1, S_PET_HINT2, S_M_ASLEEP, S_M_HUNGRY, S_M_TIRED, S_M_SAD, S_M_HAPPY, S_M_OK, S_NIGHT, S_MORNING, S_WAKE_HINT, S_FULL, S_YUM, S_LOVE, S_EXHAUSTED, S_STARVING, S_BALL, S_SETTINGS, S_LANGUAGE, S_THEME, S_MASCOT, S_SOUND, S_ON, S_OFF, S_BRIGHTNESS, S_WIFI, S_WIFI_FORGET, S_NONE, S_CONNECTED, S_CONNECTING, S_FAILED, S_MENU_HINT, S_NETWORKS, S_SCANNING, S_NO_NETWORKS, S_NET_HINT, S_PASSWORD, S_PASS_HINT, S_PC_NOTE, S_COUNT};
+enum Str {S_TODAY, S_WEEK, S_SESSION, S_WAITING_PC, S_NO_DATA, S_PAUSED, S_MUTED, S_FORECAST, S_PROJECTS, S_NO_PROJECTS, S_SESSIONS, S_NO_SESSIONS, S_ST_WAITING, S_ST_WORKING, S_ST_IDLE, S_RECORDS, S_STREAK, S_RECORD, S_GOAL, S_PERMISSION, S_SEE_TERMINAL, S_APPROVE_AGAIN, S_APPROVE_HINT, S_PET_TITLE, S_FOOD, S_ENERGY, S_JOY, S_PET_HINT1, S_PET_HINT2, S_M_ASLEEP, S_M_HUNGRY, S_M_TIRED, S_M_SAD, S_M_HAPPY, S_M_OK, S_NIGHT, S_MORNING, S_WAKE_HINT, S_FULL, S_YUM, S_LOVE, S_EXHAUSTED, S_STARVING, S_BALL, S_SETTINGS, S_LANGUAGE, S_THEME, S_MASCOT, S_SOUND, S_ON, S_OFF, S_BRIGHTNESS, S_WIFI, S_WIFI_FORGET, S_NONE, S_CONNECTED, S_CONNECTING, S_FAILED, S_MENU_HINT, S_NETWORKS, S_SCANNING, S_NO_NETWORKS, S_NET_HINT, S_PASSWORD, S_PASS_HINT, S_PC_NOTE, S_BROADCAST, S_COUNT};
 static const char *const STRINGS[S_COUNT][3] = {
     {"HOJE", "TODAY", "HOY"},
     {"SEMANA", "WEEK", "SEMANA"},
@@ -80,6 +80,7 @@ static const char *const STRINGS[S_COUNT][3] = {
     {"SENHA DE", "PASSWORD FOR", "CLAVE DE"},
     {"enter conectar  fn+` cancelar", "enter connect  fn+` cancel", "enter conectar  fn+` cancelar"},
     {"Conecte a USB para avisar o PC", "Plug USB to tell the PC", "Conecta USB para avisar al PC"},
+    {"PC transmite", "PC broadcast", "PC transmite"},
 };
 static const char *const LANGUAGES[] = {"Portugues", "English", "Espanol"};
 
@@ -231,6 +232,10 @@ void applyLine(const String &line, bool fromUsb) {
         usbDay = doc["d"];
         usbCostDay = doc["cd"];
         petSync(doc["ts"] | 0ULL, usbDay);
+        // Sem escolha feita aqui, vale o que estiver configurado no PC.
+        if (prefs.isKey("bcast") && !doc["wb"].isNull() && (doc["wb"] | false) != prefs.getBool("bcast", false)) {
+            Serial.printf("B %d\n", prefs.getBool("bcast", false) ? 1 : 0);
+        }
     }
     data.clock = doc["t"] | "--:--";
     data.day = doc["d"];
@@ -478,7 +483,7 @@ void renderPending() {
 void render() {
     bool stale = !received || millis() - lastRx > STALE_MS;
     canvas.fillSprite(theme().bg);
-    if (data.pendingId.length() && millis() - lastUsb < STALE_MS) {
+    if (data.pendingId.length() && millis() - lastUsb < STALE_MS && settingsMode != 3) {
         renderPending();
     } else if (settingsMode) {
         renderSettings();
@@ -631,17 +636,16 @@ void renderPet() {
 
 // Configurações: 0 fechada, 1 menu, 2 lista de redes, 3 senha.
 int settingsMode = 0, menuIndex = 0, netIndex = 0, netCount = 0, brightness = 2;
-static const int MENU_ITEMS = 7;
+static const int MENU_ITEMS = 8;
 String netNames[6], wifiPassword;
-bool netOpen[6], scanning = false, broadcastPending = false, broadcastValue = false;
+bool netOpen[6], scanning = false;
 static const uint8_t BRIGHTNESS[] = {25, 45, 70, 110, 180};
 
 void startWifi();
 
-// O PC só transmite se souber que há quem ouça; sem USB agora, avisa quando ela voltar.
-void requestBroadcast(bool enabled) {
-    broadcastValue = enabled;
-    broadcastPending = true;
+// Transmitir na rede é uma escolha explícita. O desejo fica salvo e é reenviado até o PC confirmar.
+void setBroadcast(bool enabled) {
+    prefs.putBool("bcast", enabled);
 }
 
 void connectTo(const String &ssid, const String &password) {
@@ -649,7 +653,6 @@ void connectTo(const String &ssid, const String &password) {
     prefs.putString("pass", password);
     WiFi.disconnect();
     startWifi();
-    requestBroadcast(true);
     settingsMode = 1;
     menuIndex = 5;
 }
@@ -728,7 +731,10 @@ void settingsKey(char c) {
                 WiFi.disconnect(true);
                 if (udpReady) udp.stop();
                 udpReady = false;
-                requestBroadcast(false);
+                setBroadcast(false);
+                break;
+            case 7:
+                setBroadcast(!prefs.getBool("bcast", false));
                 break;
         }
     }
@@ -786,11 +792,13 @@ void renderSettings() {
     canvas.drawString(tr(S_SETTINGS), 4, 2);
     String levels(brightness + 1);
     levels += "/5";
-    const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET)};
+    const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET), tr(S_BROADCAST)};
     String values[] = {LANGUAGES[language], theme().name, MASCOT_COLORS[mascotIndex].name[language],
-                       muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), ""};
-    for (int i = 0; i < MENU_ITEMS; i++) {
-        int y = 19 + i * 14;
+                       muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), "",
+                       prefs.getBool("bcast", false) ? tr(S_ON) : tr(S_OFF)};
+    int first = max(0, menuIndex - 6);
+    for (int i = first; i < MENU_ITEMS && i < first + 7; i++) {
+        int y = 19 + (i - first) * 14;
         canvas.setTextColor(i == menuIndex ? theme().accent : theme().fg);
         canvas.drawString(String(i == menuIndex ? "> " : "  ") + labels[i], 4, y);
         canvas.setTextDatum(top_right);
@@ -810,6 +818,12 @@ void answerPending(const char *value) {
 }
 
 void handleKey(char c) {
+    // Quem digita uma senha não está respondendo a um pedido, mesmo que ele chegue no meio.
+    if (settingsMode == 3) {
+        pendingSince = millis();
+        settingsKey(c);
+        return;
+    }
     if (data.pendingId.length() && millis() - lastUsb < STALE_MS) {
         // Outras teclas não fazem nada aqui: uma batida acidental não pode decidir um pedido.
         if (millis() - pendingSince < 700) return;
@@ -926,10 +940,6 @@ void loop() {
         }
     }
     pollScan();
-    if (broadcastPending && lastUsb && millis() - lastUsb < STALE_MS) {
-        Serial.printf("B %d\n", broadcastValue ? 1 : 0);
-        broadcastPending = false;
-    }
     if (WiFi.status() == WL_CONNECTED) {
         if (!udpReady) udpReady = udp.begin(UDP_PORT);
         int size = udp.parsePacket();

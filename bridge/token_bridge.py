@@ -207,14 +207,14 @@ def summarize(entries, now, sessions=(), pending=None, config=None):
         "b": remaining, "h": hourly, "a": agent, "al": alert,
         "ss": [{"n": s["n"], "st": s["st"], "tool": s["tool"]} for s in sessions[:4]],
         "pr": [{"n": k[:14], "v": v} for k, v in top],
-        "p": pending,
+        "p": pending, "wb": bool(config["wifi_broadcast"]),
         **records(entries, now),
     }
 
 
 def public_view(summary):
     """O que pode circular na rede local: só totais, nunca nomes nem pedidos de permissão."""
-    return {k: v for k, v in summary.items() if k not in ("ss", "pr", "p", "m")}
+    return {k: v for k, v in summary.items() if k not in ("ss", "pr", "p", "m", "wb")}
 
 
 class Reader:
@@ -267,7 +267,9 @@ def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trus
     """Trata uma linha vinda do aparelho. Devolve "pause" se ele pediu para alternar a pausa."""
     parts = line.strip().split()
     if trusted and len(parts) == 2 and parts[0] == "B" and parts[1] in ("0", "1"):
-        save_config({**load_config(config_path), "wifi_broadcast": parts[1] == "1"}, config_path)
+        enabled = parts[1] == "1"
+        save_config({**load_config(config_path), "wifi_broadcast": enabled}, config_path)
+        print(f"transmissão na rede local {'ligada' if enabled else 'desligada'} pelo aparelho", flush=True)
         return None
     if parts[:1] == ["P"]:
         return "pause"

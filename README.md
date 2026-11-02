@@ -112,7 +112,7 @@ Keep `device_serial` when editing this file. Commands run on your PC without a s
 
 ## Wi-Fi
 
-Open Settings (`o`), choose Wi-Fi, pick a network and type its password. A paired device connected by USB tells the PC to start broadcasting; otherwise set `wifi_broadcast` to `true` in the config. The PC and device must be on the same network, and the PC must stay on. Networks with a hidden name aren't listed. To use a password with `` ` ``, run `token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"`.
+Open Settings (`o`), choose Wi-Fi, pick a network and type its password. Then turn on **PC broadcast** in the same menu while the paired device is connected by USB; the choice is re-sent until the PC confirms it. Without pairing, set `wifi_broadcast` to `true` in the config. The PC and device must be on the same network, and the PC must stay on. Networks with a hidden name aren't listed. To use a password with `` ` ``, run `token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"`.
 
 The password is stored unencrypted on the device, so anyone holding it could extract it. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof what the screen shows, including the mascot's mood. They never carry project names or approvals, make no sound, and are never written to the microSD.
 

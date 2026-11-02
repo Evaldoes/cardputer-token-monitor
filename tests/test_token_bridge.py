@@ -183,6 +183,11 @@ def test_aparelho_pareado_liga_transmissao_wifi(tmp_path):
     assert saved["wifi_broadcast"] is True and saved["device_serial"] == "x"
 
 
+def test_resumo_informa_transmissao_so_pela_usb():
+    s = summarize([], NOW, config={"wifi_broadcast": True})
+    assert s["wb"] is True and "wb" not in public_view(s)
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}
