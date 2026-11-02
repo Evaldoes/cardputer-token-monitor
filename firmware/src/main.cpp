@@ -20,8 +20,15 @@ static const Theme THEMES[] = {
     {"Claude", 0x0000, 0xFFFF, 0x8410, 0xDBAB, 0xFBE0},
     {"Retro", 0x0000, 0xFE60, 0x9CC0, 0xFD20, 0xF800},
     {"Matrix", 0x0000, 0x07E0, 0x0400, 0x47E8, 0xFFE0},
+    {"Oceano", 0x08C6, 0xE79F, 0x6C76, 0x4D1F, 0xFE4A},
+    {"Ciano", 0x00E5, 0xDFDF, 0x5CD5, 0x269D, 0xFCED},
+    {"Meia-noite", 0x0886, 0xDF1F, 0x7417, 0x7C7F, 0xFDCD},
+    {"Rosa", 0x2843, 0xFF3E, 0xBC54, 0xFB76, 0xFE8C},
+    {"Lavanda", 0x18A6, 0xF75F, 0x9C77, 0xC51F, 0xFCF8},
+    {"Algodao", 0xFF9E, 0x4907, 0xABF2, 0xEA52, 0xC0CB},
+    {"Pessego", 0x28A3, 0xFF7C, 0xBCB1, 0xFCF1, 0xFE8C},
 };
-static const int THEME_COUNT = 3;
+static const int THEME_COUNT = 10;
 
 struct Row {
     String name, state;
@@ -47,7 +54,17 @@ static const uint8_t MASCOT[8][12] = {
     {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0}, {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
     {0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0}, {0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0},
 };
-static const uint16_t MASCOT_COLOR = 0xDBAB;
+static const struct { const char *name; uint16_t color; } MASCOT_COLORS[] = {
+    {"Coral", 0xDB8A},
+    {"Azul", 0x4D1F},
+    {"Ciano", 0x269D},
+    {"Rosa", 0xFB76},
+    {"Lilas", 0xC51F},
+    {"Verde", 0x4EF0},
+    {"Amarelo", 0xFE62},
+    {"Branco", 0xF7BE},
+};
+static const int MASCOT_COLOR_COUNT = 8;
 
 M5Canvas canvas(&M5Cardputer.Display);
 Preferences prefs;
@@ -59,11 +76,26 @@ uint32_t lastRx = 0, lastUsb = 0, confirmUntil = 0, pendingSince = 0;
 String armedId;
 bool pendingAllowed = false;
 bool received = false, muted = false, sdReady = false, udpReady = false, paused = false;
-int view = 0, themeIndex = 0;
+int view = 0, themeIndex = 0, mascotIndex = 0;
+String toast;
+uint32_t toastUntil = 0;
 String prevAgent = "off", prevAlert, prevPending;
 const int VIEW_COUNT = 6;
 
 const Theme &theme() { return THEMES[themeIndex]; }
+
+void showToast(const String &text) {
+    toast = text;
+    toastUntil = millis() + 1500;
+}
+
+// Escurece uma cor RGB565 por componente, para a escala do mapa de atividade.
+uint16_t shade(uint16_t color, int percent) {
+    int r = ((color >> 11) & 31) * percent / 100;
+    int g = ((color >> 5) & 63) * percent / 100;
+    int b = (color & 31) * percent / 100;
+    return (r << 11) | (g << 5) | b;
+}
 
 String human(uint64_t n) {
     char buf[16];
@@ -188,11 +220,12 @@ void drawMascot(int x, int y, int px, bool stale) {
             int rx = x + c * px, ry = y + r * px;
             // Andar: as pernas de cada lado encolhem em turnos.
             if (working && r == 7 && ((c < 6) == (frame == 0))) continue;
-            uint16_t color = MASCOT_COLOR;
+            uint16_t body = MASCOT_COLORS[mascotIndex].color;
+            uint16_t color = body;
             if (v == 2) {
                 color = 0x0000;
                 if (sleeping || blink) {
-                    canvas.fillRect(rx, ry, px, px, MASCOT_COLOR);
+                    canvas.fillRect(rx, ry, px, px, body);
                     canvas.fillRect(rx, ry + px / 2, px, max(1, px / 3), 0x0000);
                     continue;
                 }
@@ -232,6 +265,7 @@ void header(const char *title, bool stale) {
     String right = !received ? "aguardando PC" : stale ? "SEM DADOS " + data.clock : data.clock;
     if (paused) right = "PAUSADO";
     if (muted) right = "mudo " + right;
+    if (millis() < toastUntil) right = toast;
     canvas.drawString(right, 236, 2);
     canvas.setTextDatum(top_left);
 }
@@ -313,7 +347,8 @@ void renderStats(bool stale) {
     canvas.drawString("sequencia: " + String(data.streak) + " dias", 4, 22);
     canvas.drawString("recorde: " + human(data.record), 4, 40);
     if (data.goal) canvas.drawString("meta: " + human(data.day) + " / " + human(data.goal), 4, 58);
-    static const uint16_t LEVELS[] = {0x2104, 0x6A02, 0x9B05, 0xBB88, 0xDBAB};
+    const uint16_t LEVELS[] = {shade(theme().dim, 35), shade(theme().accent, 40), shade(theme().accent, 60),
+                               shade(theme().accent, 80), theme().accent};
     for (int i = 0; i < 28; i++) {
         int x = 4 + (i % 14) * 16, y = 86 + (i / 14) * 22;
         canvas.fillRect(x, y, 14, 20, LEVELS[min<int>(data.heat[i], 4)]);
@@ -388,6 +423,11 @@ void handleKey(char c) {
     if (c == 't') {
         themeIndex = (themeIndex + 1) % THEME_COUNT;
         prefs.putInt("theme", themeIndex);
+        showToast(theme().name);
+    } else if (c == 'c') {
+        mascotIndex = (mascotIndex + 1) % MASCOT_COLOR_COUNT;
+        prefs.putInt("mascot", mascotIndex);
+        showToast(MASCOT_COLORS[mascotIndex].name);
     } else if (c == 'm') {
         muted = !muted;
         prefs.putBool("muted", muted);
@@ -435,6 +475,7 @@ void setup() {
     input.reserve(2048);
     prefs.begin("tokenmon");
     themeIndex = constrain(prefs.getInt("theme", 0), 0, THEME_COUNT - 1);
+    mascotIndex = constrain(prefs.getInt("mascot", 0), 0, MASCOT_COLOR_COUNT - 1);
     muted = prefs.getBool("muted", false);
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     sdReady = SD.begin(SD_CS, SPI, 20000000);

@@ -16,7 +16,8 @@
 - **Alerts:** daily token goal and 5-hour window running out
 - **Project ranking and parallel sessions**
 - **Streak, record and 28-day heatmap**
-- **Themes:** Claude, Retro and Matrix
+- **10 themes:** Claude, Retro, Matrix, Ocean, Cyan, Midnight, Pink, Lavender, Cotton Candy and Peach
+- **8 mascot colors:** change them separately from the theme
 - **USB or Wi-Fi:** Wi-Fi is display-only and sends totals only
 - **microSD history:** daily totals in `token-history.csv` (FAT32)
 
@@ -26,6 +27,7 @@
 | --- | --- |
 | Any other key / `,` | Next / previous view |
 | `t` | Next theme |
+| `c` | Next mascot color |
 | `m` | Mute |
 | `p` | Pause updates |
 | `1`-`9` | Run a command from your config |
