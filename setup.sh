@@ -4,10 +4,9 @@ set -euo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SERVICE=cardputer-token-monitor
-BACKUP="$REPO/backup/firmware-original-8MB.bin"
 CONFIG="$HOME/.config/cardputer-token-monitor.json"
 
-YES=0 FLASH=1 APPROVE=0 DRY=0 PORT="" RESTART=0
+YES=0 FLASH=1 APPROVE=0 DRY=0 PORT="" RESTART=0 BOARD=""
 
 usage() {
     cat <<USAGE
@@ -16,6 +15,7 @@ Uso: ./setup.sh [opções]
   --yes        aceita todas as etapas, sem perguntar
   --no-flash   só configura o PC: sem backup nem gravação
   --approve    permite aprovar pelo aparelho (sempre pede confirmação digitada)
+  --board NOME cardputer ou tembed; obrigatório para gravar com --yes
   --port PORTA porta serial; por padrão, detecta o aparelho
   --dry-run    mostra o que faria, sem alterar nada
   -h, --help   mostra esta ajuda
@@ -28,6 +28,7 @@ while [ $# -gt 0 ]; do
         --no-flash) FLASH=0 ;;
         --approve) APPROVE=1 ;;
         --dry-run) DRY=1 ;;
+        --board) [ $# -ge 2 ] || { echo "--board exige um valor" >&2; exit 2; }; BOARD=$2; shift ;;
         --port) [ $# -ge 2 ] || { echo "--port exige um valor" >&2; exit 2; }; PORT=$2; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Opção desconhecida: $1" >&2; usage >&2; exit 2 ;;
@@ -74,6 +75,20 @@ print(found[0] if len(found) == 1 else "")
 PY
 }
 
+# Gravar o firmware de outro aparelho deixa a tela sem funcionar: o modelo nunca é presumido.
+if [ "$FLASH" = 1 ] && [ -z "$BOARD" ]; then
+    if [ "$YES" = 1 ] || [ "$DRY" = 1 ] || [ ! -t 0 ]; then
+        die "informe o aparelho com --board cardputer ou --board tembed, ou use --no-flash"
+    fi
+    read -r -p "Qual aparelho? [cardputer/tembed] " BOARD
+fi
+case "$BOARD" in
+    "") ;;
+    cardputer) FIRMWARE="$REPO/firmware" FLASH_SIZE=0x800000 BACKUP="$REPO/backup/firmware-original-8MB.bin" ;;
+    tembed) FIRMWARE="$REPO/firmware-tembed" FLASH_SIZE=0x1000000 BACKUP="$REPO/backup/tembed-original-16MB.bin" ;;
+    *) die "aparelho desconhecido: $BOARD" ;;
+esac
+
 step "Verificando requisitos"
 command -v python3 >/dev/null || die "python3 não encontrado"
 command -v uv >/dev/null || die "uv não encontrado: veja https://docs.astral.sh/uv/"
@@ -112,7 +127,7 @@ if [ "$FLASH" = 1 ] && [ -n "$PORT" ]; then
         run chmod 600 "$BACKUP"
     elif confirm "Fazer backup do firmware em backup/?"; then
         run mkdir -p -m 700 "$REPO/backup"
-        (umask 077; run uvx esptool --port "$PORT" read-flash 0 0x800000 "$BACKUP")
+        (umask 077; run uvx esptool --port "$PORT" read-flash 0 "$FLASH_SIZE" "$BACKUP")
     fi
 
     step "Gravação do firmware"
@@ -121,7 +136,7 @@ if [ "$FLASH" = 1 ] && [ -n "$PORT" ]; then
         warn "não há backup do firmware atual"
     fi
     if confirm "Gravar o firmware agora?"; then
-        run uvx --from platformio pio run -d "$REPO/firmware" -t upload --upload-port "$PORT"
+        run uvx --from platformio pio run -d "$FIRMWARE" -t upload --upload-port "$PORT"
         [ "$DRY" = 1 ] || sleep 3
     fi
 fi

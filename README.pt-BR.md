@@ -1,6 +1,6 @@
-# Monitor de tokens do Claude Code para M5Stack Cardputer
+# Monitor de tokens do Claude Code para M5Stack Cardputer e LilyGO T-Embed
 
-**Um companheiro de mesa, de bolso, para o Claude Code.** Veja seus tokens, o custo estimado e o status do agente em um Cardputer com ESP32-S3, e cuide de um bichinho em pixel art que sobe de nível enquanto você trabalha.
+**Um companheiro de mesa, de bolso, para o Claude Code.** Veja seus tokens, o custo estimado e o status do agente em um Cardputer ou T-Embed com ESP32-S3, e cuide de um bichinho em pixel art que sobe de nível enquanto você trabalha.
 
 ![Ilustração da tela do monitor](docs/screens/pt/today.svg)
 
@@ -56,7 +56,7 @@
 
 ## Requisitos
 
-- M5Stack Cardputer (ESP32-S3, flash de 8 MB)
+- M5Stack Cardputer (ESP32-S3, flash de 8 MB) ou LilyGO T-Embed (ESP32-S3, flash de 16 MB)
 - PC com [Claude Code](https://claude.com/claude-code). Desenvolvido no Linux; macOS e Windows não foram testados
 - [uv](https://docs.astral.sh/uv/) e um cabo USB-C que transmita dados
 - No Linux, acesso à porta serial (normalmente pelo grupo `dialout`)
@@ -69,7 +69,7 @@ O jeito mais fácil, no Linux:
 ```bash
 git clone https://github.com/Evaldoes/cardputer-token-monitor.git
 cd cardputer-token-monitor
-./setup.sh
+./setup.sh --board cardputer   # ou --board tembed
 ```
 
 Ele verifica os requisitos, faz backup do firmware, grava, pareia, instala os hooks, pergunta os alertas e ativa o início automático, confirmando cada etapa. Pode ser rodado de novo sem problema.
@@ -77,6 +77,7 @@ Ele verifica os requisitos, faz backup do firmware, grava, pareia, instala os ho
 | Opção | Para que serve |
 | --- | --- |
 | `--yes` | Aceita todas as etapas sem perguntar |
+| `--board NOME` | `cardputer` ou `tembed`; é perguntado se omitido, e obrigatório com `--yes` |
 | `--no-flash` | Só configura o PC, sem backup nem gravação |
 | `--approve` | Permite aprovar pelo aparelho; sempre pede uma confirmação digitada |
 | `--port PORTA` | Porta serial, detectada por padrão |
@@ -85,6 +86,8 @@ Ele verifica os requisitos, faz backup do firmware, grava, pareia, instala os ho
 Ele não formata o microSD, não entra no Wi-Fi e não adiciona você ao grupo `dialout`.
 
 ### Configuração manual
+
+Estes passos são para o Cardputer; veja [LilyGO T-Embed](#lilygo-t-embed) para os comandos dele.
 
 ```bash
 git clone https://github.com/Evaldoes/cardputer-token-monitor.git
@@ -125,7 +128,7 @@ O arquivo `.github/workflows/pages.yml` compila o firmware e publica o instalado
 
 ## Galeria de telas
 
-*Ilustrações com dados de exemplo, geradas por `scripts/gen_mockups.py`. O espaçamento e as fontes mudam um pouco no aparelho real.*
+*Ilustrações com dados de exemplo, geradas por `scripts/gen_mockups.py`. Elas mostram o Cardputer; o T-Embed tem tela maior. O espaçamento e as fontes mudam um pouco no aparelho real.*
 
 | Hoje | Semana | Sessão |
 | --- | --- | --- |
@@ -413,6 +416,7 @@ Organização do repositório:
 | `bridge/token_bridge.py` | Lê os registros, monta o resumo e conversa com o aparelho |
 | `hooks/agent_hook.py` | Registra o estado das sessões e trata as aprovações |
 | `firmware/` | Projeto PlatformIO do Cardputer |
+| `firmware-tembed/` | Projeto PlatformIO do T-Embed |
 | `scripts/` | Instaladores dos hooks e do serviço |
 | `site/`, `.github/workflows/pages.yml` | Instalação pelo navegador |
 | `tests/` | Testes em Python |
