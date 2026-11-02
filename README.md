@@ -6,7 +6,7 @@
 
 *Illustrative mockup with sample numbers. The real screens have more detail.*
 
-🇧🇷 [Resumo em português](#em-português)
+🇧🇷 [Leia em português](README.pt-BR.md)
 
 ## Contents
 
@@ -422,11 +422,3 @@ Issues and pull requests are welcome, especially reports from Cardputer ADV, mac
 ## License
 
 [MIT](LICENSE). Independent community project, not affiliated with Anthropic or M5Stack.
-
-## Em português
-
-Monitor de tokens do Claude Code com bichinho virtual para o M5Stack Cardputer. Mostra consumo, custo estimado e status do agente na tela do aparelho, por USB ou Wi-Fi.
-
-1. Siga o [Quick start](#quick-start) para gravar o firmware, parear e enviar os dados.
-2. Rode `python3 scripts/install_hooks.py` para ativar o status do agente.
-3. No aparelho, aperte `o` para configurar idioma, tema, som, brilho e Wi-Fi, e `g` para abrir o bichinho.
