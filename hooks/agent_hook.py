@@ -8,9 +8,25 @@ import time
 import uuid
 from pathlib import Path
 
-STATE = Path(os.environ.get("CARDPUTER_STATE") or Path.home() / ".cache" / "cardputer-token-monitor")
+STATE = Path.home() / ".cache" / "cardputer-token-monitor"
 APPROVE_SECONDS = 25
 BRIDGE_FRESH_SECONDS = 15
+DETAIL_MAX = 60
+
+
+def private_dir(path):
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    STATE.chmod(0o700)
+    path.chmod(0o700)
+
+
+def write_private(path, text):
+    """Troca o arquivo de uma vez, legível só pelo dono."""
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    tmp.replace(path)
 
 
 def state_for(event, data):
@@ -38,10 +54,8 @@ def record(data):
     state = state_for(event, data)
     if state is None:
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps({"state": state, "cwd": data.get("cwd", ""), "tool": data.get("tool_name", "")}))
-    tmp.replace(path)
+    private_dir(path.parent)
+    write_private(path, json.dumps({"state": state, "cwd": data.get("cwd", ""), "tool": data.get("tool_name", "")}))
 
 
 def bridge_running():
@@ -59,6 +73,11 @@ def describe(tool_input):
     return ""
 
 
+def fully_visible(tool_name, detail):
+    """Só um comando Bash curto cabe inteiro na tela; o resto só pode ser negado no aparelho."""
+    return tool_name == "Bash" and 0 < len(detail) <= DETAIL_MAX and detail.isprintable() and detail.isascii()
+
+
 def wait_decision(data, timeout=APPROVE_SECONDS):
     """Devolve "y", "n" ou None. Sem resposta, o terminal decide: nunca aprova por omissão."""
     if not bridge_running():
@@ -66,16 +85,19 @@ def wait_decision(data, timeout=APPROVE_SECONDS):
     rid = uuid.uuid4().hex
     pending = STATE / "pending" / f"{rid}.json"
     response = STATE / "responses" / rid
-    pending.parent.mkdir(parents=True, exist_ok=True)
-    tmp = pending.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"id": rid, "tool": data.get("tool_name", ""),
-                               "detail": describe(data.get("tool_input")), "expires": time.time() + timeout}))
-    tmp.replace(pending)
+    private_dir(pending.parent)
+    tool = data.get("tool_name", "")
+    detail = describe(data.get("tool_input"))
+    write_private(pending, json.dumps({"id": rid, "tool": tool, "detail": detail[:DETAIL_MAX],
+                                       "can_allow": fully_visible(tool, detail),
+                                       "expires": time.time() + timeout}))
     try:
         deadline = time.time() + timeout
         while time.time() < deadline:
             if response.exists():
                 value = response.read_text().strip()
+                if value == "y" and not fully_visible(tool, detail):
+                    return None
                 return value if value in ("y", "n") else None
             time.sleep(0.25)
         return None

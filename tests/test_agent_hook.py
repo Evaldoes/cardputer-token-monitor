@@ -53,6 +53,37 @@ def test_resposta_do_aparelho(tmp_path, monkeypatch):
     assert agent_hook.wait_decision({"tool_name": "Bash", "tool_input": {"command": "ls"}}, timeout=3) == "y"
 
 
+def test_arquivos_privados(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_hook, "STATE", tmp_path)
+    agent_hook.record({"session_id": "a", "hook_event_name": "Stop", "cwd": "/x"})
+    assert (tmp_path / "sessions" / "a.json").stat().st_mode & 0o077 == 0
+    assert (tmp_path / "sessions").stat().st_mode & 0o077 == 0
+
+
+def test_so_comando_visivel_por_inteiro_pode_ser_aprovado():
+    assert agent_hook.fully_visible("Bash", "ls -la")
+    assert not agent_hook.fully_visible("Bash", "x" * 61)
+    assert not agent_hook.fully_visible("Bash", "ls\nrm -rf /")
+    assert not agent_hook.fully_visible("Edit", "a.py")
+
+
+def test_aprovacao_de_comando_cortado_e_ignorada(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_hook, "STATE", tmp_path)
+    (tmp_path / "bridge.alive").touch()
+
+    def responder():
+        while not list((tmp_path / "pending").glob("*.json")):
+            time.sleep(0.02)
+        p = json.loads(next((tmp_path / "pending").glob("*.json")).read_text())
+        assert p["can_allow"] is False and len(p["detail"]) == 60
+        (tmp_path / "responses").mkdir()
+        (tmp_path / "responses" / p["id"]).write_text("y")
+
+    threading.Thread(target=responder).start()
+    long = {"tool_name": "Bash", "tool_input": {"command": "x" * 100}}
+    assert agent_hook.wait_decision(long, timeout=3) is None
+
+
 def test_saida_da_decisao():
     assert json.loads(agent_hook.decision_output("y"))["hookSpecificOutput"]["decision"]["behavior"] == "allow"
     assert json.loads(agent_hook.decision_output("n"))["hookSpecificOutput"]["decision"]["behavior"] == "deny"

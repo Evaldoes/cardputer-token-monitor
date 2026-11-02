@@ -18,7 +18,7 @@ RETENTION = timedelta(days=400)
 BLOCK = timedelta(hours=5)
 ESPRESSIF_VID = 0x303A
 UDP_PORT = 47474
-DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False}
+DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False, "device_serial": ""}
 
 # US$ por MTok: entrada, saída, leitura de cache. Escrita: 1,25x (5 min) ou 2x (1 h) a entrada.
 PRICES = {
@@ -146,14 +146,17 @@ def read_pending(state_dir=STATE, now_ts=None):
     for path in (state_dir / "pending").glob("*.json"):
         try:
             p = json.loads(path.read_text())
+            if p.get("expires", 0) > now_ts:
+                found.append(p)
+            else:
+                path.unlink()
         except (OSError, ValueError):
             continue
-        if p.get("expires", 0) > now_ts:
-            found.append(p)
     if not found:
         return None
     p = min(found, key=lambda x: x["expires"])
-    return {"id": p["id"], "tool": p.get("tool", "")[:16], "d": p.get("detail", "")[:60]}
+    return {"id": p["id"], "tool": p.get("tool", "")[:16], "d": p.get("detail", "")[:60],
+            "ok": bool(p.get("can_allow"))}
 
 
 def summarize(entries, now, sessions=(), pending=None, config=None):
@@ -253,11 +256,13 @@ def load_config(path=CONFIG):
         return dict(DEFAULTS)
 
 
-def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen):
+def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trusted=True):
     """Trata uma linha vinda do aparelho. Devolve "pause" se ele pediu para alternar a pausa."""
     parts = line.strip().split()
     if parts[:1] == ["P"]:
         return "pause"
+    if not trusted:  # aparelho não pareado não decide nem executa nada
+        return None
     if len(parts) == 3 and parts[0] == "A" and re.fullmatch(r"[0-9a-f]{32}", parts[1]) and parts[2] in ("y", "n"):
         responses = state_dir / "responses"
         responses.mkdir(parents=True, exist_ok=True)
@@ -270,12 +275,24 @@ def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen):
     return None
 
 
-def find_port():
+def find_port(serial_number=""):
+    """Com aparelho pareado, aceita só ele; sem pareamento, o primeiro Espressif."""
     from serial.tools import list_ports
     for p in list_ports.comports():
-        if p.vid == ESPRESSIF_VID:
+        if p.vid == ESPRESSIF_VID and (not serial_number or p.serial_number == serial_number):
             return p.device
     return None
+
+
+def pair():
+    from serial.tools import list_ports
+    found = [p for p in list_ports.comports() if p.vid == ESPRESSIF_VID]
+    if len(found) != 1:
+        raise SystemExit(f"Conecte exatamente um aparelho Espressif (encontrei {len(found)}).")
+    config = {**load_config(), "device_serial": found[0].serial_number}
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG.write_text(json.dumps(config, indent=2) + "\n")
+    print(f"Pareado com {found[0].serial_number} em {found[0].device}.")
 
 
 def open_port(port):
@@ -291,7 +308,8 @@ def open_port(port):
 
 def send_wifi(args):
     password = getpass.getpass(f"Senha de {args.wifi}: ")
-    ser = open_port(args.port or find_port())
+    # A senha só vai para uma porta escolhida por quem digita, nunca para a primeira encontrada.
+    ser = open_port(args.port)
     ser.write(f"W {args.wifi}\t{password}\n".encode())
     ser.close()
     print("Credenciais enviadas; ficam gravadas na memória do aparelho.")
@@ -303,7 +321,13 @@ def main():
     ap.add_argument("--interval", type=float, default=5)
     ap.add_argument("--once", action="store_true", help="imprime o resumo e sai, sem usar a serial")
     ap.add_argument("--wifi", metavar="SSID", help="grava as credenciais de Wi-Fi no aparelho e sai")
+    ap.add_argument("--pair", action="store_true", help="pareia com o aparelho conectado e sai")
     args = ap.parse_args()
+    if args.pair:
+        pair()
+        return
+    if args.wifi and not args.port:
+        ap.error("--wifi exige --port")
     if args.wifi:
         send_wifi(args)
         return
@@ -319,7 +343,8 @@ def main():
         config = load_config()
         STATE.mkdir(parents=True, exist_ok=True)
         (STATE / "bridge.alive").touch()
-        sessions, pending = read_sessions(), read_pending()
+        paired = config["device_serial"]
+        sessions, pending = read_sessions(), read_pending() if paired else None
         key = ([s["st"] for s in sessions], pending and pending["id"])
         try:
             if time.time() >= next_send or key != last_key:
@@ -335,7 +360,7 @@ def main():
                     pub = json.dumps(public_view(summary), separators=(",", ":")).encode()
                     udp.sendto(pub, ("255.255.255.255", UDP_PORT))
                 if ser is None:
-                    port = args.port or find_port()
+                    port = find_port(paired) if paired else args.port or find_port()
                     if port:
                         ser = open_port(port)
                         print(f"conectado em {port}", flush=True)
@@ -347,7 +372,7 @@ def main():
                 buffer += ser.read(256)
                 while b"\n" in buffer:
                     line, buffer = buffer.split(b"\n", 1)
-                    if handle_device_line(line.decode(errors="ignore"), config) == "pause":
+                    if handle_device_line(line.decode(errors="ignore"), config, trusted=bool(paired)) == "pause":
                         paused = not paused
         except OSError as exc:  # serial.SerialException herda de OSError
             print(f"sem conexão: {exc}", flush=True)

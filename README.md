@@ -69,10 +69,10 @@ python3 scripts/install_hooks.py            # agent status (backs up ~/.claude/s
 python3 scripts/install_hooks.py --approve  # also approve from the device
 python3 scripts/install_hooks.py --remove   # undo
 ./scripts/install_service.sh                # start on login (Linux, systemd)
-uv run --with pyserial bridge/token_bridge.py --wifi "MyNetwork"  # store Wi-Fi on the device
+uv run --with pyserial bridge/token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"  # store Wi-Fi on the device (add --port)
 ```
 
-**About `--approve`:** each permission request first waits up to 25 s for the device, delaying the terminal prompt. With no answer, or with the bridge stopped, the decision goes back to the terminal; it never approves by default. Anyone holding the device can approve commands on your PC, so enable it only if that is acceptable.
+**About `--approve`:** run `uv run --with pyserial bridge/token_bridge.py --pair` first; an unpaired device can't approve or run commands. Only short, single-line Bash commands shown in full can be approved; anything else can only be denied on the device or answered in the terminal. Approval is a convenience, **not a security boundary:** decisions travel through files owned by your user, so any process running as you, including one started by Claude, could forge a response. Don't enable it if that matters to you. Each permission request first waits up to 25 s for the device, delaying the terminal prompt. With no answer, or with the bridge stopped, the decision goes back to the terminal; it never approves by default. Anyone holding the device can approve commands on your PC, so enable it only if that is acceptable.
 
 Config lives in `~/.config/cardputer-token-monitor.json`:
 
@@ -85,7 +85,7 @@ Config lives in `~/.config/cardputer-token-monitor.json`:
 }
 ```
 
-Commands run on your PC without a shell, and only those you list. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof the display, so they never carry project names or approvals.
+Commands run on your PC without a shell, and only those you list. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof the display, so they never carry project names or approvals, and the device ignores their lists and never writes them to the microSD.
 
 ## Web installer
 

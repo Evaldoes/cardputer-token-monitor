@@ -53,7 +53,9 @@ M5Canvas canvas(&M5Cardputer.Display);
 Preferences prefs;
 WiFiUDP udp;
 String input, sdDate;
-uint32_t lastRx = 0, lastUsb = 0, confirmUntil = 0;
+uint32_t lastRx = 0, lastUsb = 0, confirmUntil = 0, pendingSince = 0;
+String armedId;
+bool pendingAllowed = false;
 bool received = false, muted = false, sdReady = false, udpReady = false, paused = false;
 int view = 0, themeIndex = 0;
 String prevAgent = "off", prevAlert, prevPending;
@@ -97,7 +99,8 @@ void appendHistory(const String &newDate) {
 void applyLine(const String &line, bool fromUsb) {
     JsonDocument doc;
     if (deserializeJson(doc, line)) return;
-    appendHistory(doc["dt"] | "");
+    // A rede não é autenticada: só a USB escreve no cartão.
+    if (fromUsb) appendHistory(doc["dt"] | "");
     data.clock = doc["t"] | "--:--";
     data.day = doc["d"];
     data.dayCache = doc["dc"];
@@ -119,6 +122,11 @@ void applyLine(const String &line, bool fromUsb) {
     if (fromUsb) data.model = doc["m"] | "-";
     for (int i = 0; i < 12; i++) data.hours[i] = doc["h"][i];
     for (int i = 0; i < 28; i++) data.heat[i] = doc["hm"][i];
+    if (!fromUsb) {
+        lastRx = millis();
+        received = true;
+        return;  // Wi-Fi só atualiza totais; alertas e listas dependem da USB.
+    }
     data.sessionCount = 0;
     for (JsonObject s : doc["ss"].as<JsonArray>()) {
         if (data.sessionCount == 4) break;
@@ -134,12 +142,18 @@ void applyLine(const String &line, bool fromUsb) {
         r.value = p["v"];
     }
     // Aprovação só existe pela USB: o Wi-Fi é transmissão aberta e não traz esse campo.
-    if (fromUsb) {
-        data.pendingId = doc["p"]["id"] | "";
-        data.pendingTool = doc["p"]["tool"] | "";
-        data.pendingDetail = doc["p"]["d"] | "";
-        lastUsb = millis();
+    String newId = doc["p"]["id"] | "";
+    if (newId != data.pendingId) {
+        // Pedido novo cancela qualquer confirmação em curso e ignora teclas por um instante.
+        armedId = "";
+        confirmUntil = 0;
+        pendingSince = millis();
     }
+    data.pendingId = newId;
+    data.pendingTool = doc["p"]["tool"] | "";
+    data.pendingDetail = doc["p"]["d"] | "";
+    pendingAllowed = doc["p"]["ok"] | false;
+    lastUsb = millis();
     lastRx = millis();
     received = true;
     if (data.agent == "waiting" && prevAgent != "waiting") beep(1800, 200);
@@ -315,9 +329,10 @@ void renderPending() {
     canvas.setTextWrap(true);
     canvas.print(data.pendingDetail);
     canvas.setTextWrap(false);
-    bool arming = millis() < confirmUntil;
+    bool arming = armedId == data.pendingId && millis() < confirmUntil;
     canvas.setTextColor(arming ? theme().warn : theme().fg);
-    canvas.drawString(arming ? "y de novo para APROVAR" : "y aprovar (2x)    n negar", 4, 116);
+    canvas.drawString(!pendingAllowed ? "veja no terminal   n negar"
+                      : arming ? "y de novo para APROVAR" : "y aprovar (2x)    n negar", 4, 116);
 }
 
 void render() {
@@ -340,17 +355,23 @@ void render() {
 void answerPending(const char *value) {
     Serial.printf("A %s %s\n", data.pendingId.c_str(), value);
     data.pendingId = "";
+    armedId = "";
     confirmUntil = 0;
 }
 
 void handleKey(char c) {
     if (data.pendingId.length() && millis() - lastUsb < STALE_MS) {
         // Outras teclas não fazem nada aqui: uma batida acidental não pode decidir um pedido.
+        if (millis() - pendingSince < 700) return;
         if (c == 'n') {
             answerPending("n");
-        } else if (c == 'y') {
-            if (millis() < confirmUntil) answerPending("y");
-            else confirmUntil = millis() + CONFIRM_MS;
+        } else if (c == 'y' && pendingAllowed) {
+            if (armedId == data.pendingId && millis() < confirmUntil) {
+                answerPending("y");
+            } else {
+                armedId = data.pendingId;
+                confirmUntil = millis() + CONFIRM_MS;
+            }
         }
         return;
     }

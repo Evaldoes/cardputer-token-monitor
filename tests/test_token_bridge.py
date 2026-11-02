@@ -165,6 +165,14 @@ def test_linha_do_aparelho(tmp_path):
     assert handle_device_line("P", {}, tmp_path) == "pause"
 
 
+def test_aparelho_nao_pareado_nao_decide(tmp_path):
+    calls = []
+    cfg = {"commands": {"1": ["echo"]}}
+    handle_device_line("A " + "a" * 32 + " y", cfg, tmp_path, calls.append, trusted=False)
+    handle_device_line("C 1", cfg, tmp_path, calls.append, trusted=False)
+    assert not (tmp_path / "responses").exists() and calls == []
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}
