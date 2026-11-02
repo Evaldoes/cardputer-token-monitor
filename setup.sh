@@ -119,7 +119,23 @@ else
     warn "nenhum aparelho único encontrado; etapas que usam o aparelho serão puladas"
 fi
 
+# Confere o aparelho antes de tudo: o tamanho da flash separa os dois modelos.
+check_board() {
+    local detected expected
+    detected=$(uvx esptool --port "$PORT" flash-id 2>&1 | sed -n 's/^Detected flash size: \([0-9]*\)MB.*/\1/p')
+    expected=$((FLASH_SIZE / 1048576))
+    [ -n "$detected" ] || die "não consegui ler o aparelho em $PORT"
+    [ "$detected" = "$expected" ] || die "o aparelho tem ${detected} MB de flash, mas $BOARD usa ${expected} MB. Nada foi gravado."
+    echo "Aparelho compatível com $BOARD (${detected} MB de flash)"
+}
+
 if [ "$FLASH" = 1 ] && [ -n "$PORT" ]; then
+    if [ "$DRY" = 1 ]; then
+        printf '[simulação] conferiria se o aparelho é %s\n' "$BOARD"
+    else
+        check_board
+    fi
+
     step "Backup do firmware atual"
     echo "O backup pode conter senhas de Wi-Fi: fica legível só por você e nunca deve ser publicado."
     if [ -e "$BACKUP" ]; then
