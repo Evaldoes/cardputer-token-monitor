@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <nvs_flash.h>
 #include <driver/i2s.h>
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
@@ -311,7 +312,6 @@ void appendHistory(const String &newDate) {
 void startWifi() {
     String ssid = prefs.getString("ssid", "");
     if (!ssid.length()) return;
-    WiFi.persistent(false);  // a senha fica só em um lugar, que "Esquecer" consegue apagar
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), prefs.getString("pass", "").c_str());
 }
@@ -757,6 +757,30 @@ void renderSettings() {
     }
 }
 
+// Apaga a área inteira de configurações: remover a chave deixaria a senha em páginas antigas da flash,
+// e a cópia do driver de Wi-Fi fica nessa mesma área. Depois, regrava só o que não é segredo.
+void forgetWifi() {
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_OFF);
+    if (udpReady) udp.stop();
+    udpReady = false;
+    prefs.end();
+    nvs_flash_erase();
+    nvs_flash_init();
+    prefs.begin("tokenmon");
+    prefs.putInt("lang", language);
+    prefs.putInt("bright", brightness);
+    prefs.putInt("screenOff", screenOffIndex);
+    prefs.putInt("theme", themeIndex);
+    prefs.putInt("mascot", mascotIndex);
+    prefs.putBool("muted", muted);
+    prefs.putInt("gameBest", gameBest);
+    prefs.putBool("bcast", false);
+    prefs.putBool("bcastPend", true);
+    prefs.putBool("leds", ledsOn);
+    petSave();
+}
+
 void settingAction(int item) {
     switch (item) {
         case 0:
@@ -795,14 +819,7 @@ void settingAction(int item) {
         case 8:
             break;  // Sem teclado: a rede é definida pelo PC, com token_bridge.py --wifi.
         case 9:
-            prefs.putString("pass", String("                                                                ").c_str());
-            prefs.remove("ssid");
-            prefs.remove("pass");
-            WiFi.disconnect(true, true);
-            if (udpReady) udp.stop();
-            udpReady = false;
-            prefs.putBool("bcast", false);
-            prefs.putBool("bcastPend", true);
+                forgetWifi();
             break;
         case 10:
             // Transmitir na rede é uma escolha explícita: reenviada só até o PC confirmar.
@@ -924,6 +941,7 @@ void setup() {
     Serial.begin(115200);
     Serial.setTxTimeoutMs(0);
     input.reserve(2048);
+    WiFi.persistent(false);  // antes de qualquer uso do Wi-Fi, inclusive a busca de redes
     prefs.begin("tokenmon");
     language = constrain(prefs.getInt("lang", 0), 0, 2);
     brightness = constrain(prefs.getInt("bright", 2), 0, 4);

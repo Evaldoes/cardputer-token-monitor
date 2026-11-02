@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <nvs_flash.h>
 
 // Sem novidade do PC por esse tempo, a tela avisa em vez de exibir dado velho como atual.
 static const uint32_t STALE_MS = 20000;
@@ -875,6 +876,29 @@ String wifiStatus() {
     return String(tr(S_CONNECTING));
 }
 
+// Apaga a área inteira de configurações: remover a chave deixaria a senha em páginas antigas da flash,
+// e a cópia do driver de Wi-Fi fica nessa mesma área. Depois, regrava só o que não é segredo.
+void forgetWifi() {
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_OFF);
+    if (udpReady) udp.stop();
+    udpReady = false;
+    prefs.end();
+    nvs_flash_erase();
+    nvs_flash_init();
+    prefs.begin("tokenmon");
+    prefs.putInt("lang", language);
+    prefs.putInt("bright", brightness);
+    prefs.putInt("screenOff", screenOffIndex);
+    prefs.putInt("theme", themeIndex);
+    prefs.putInt("mascot", mascotIndex);
+    prefs.putBool("muted", muted);
+    prefs.putInt("gameBest", gameBest);
+    prefs.putBool("bcast", false);
+    prefs.putBool("bcastPend", true);
+    petSave();
+}
+
 void settingsKey(char c) {
     if (settingsMode == 3) {
         if (c == 27) settingsMode = 2;
@@ -935,13 +959,7 @@ void settingsKey(char c) {
                 settingsMode = 2;
                 break;
             case 6:
-                prefs.putString("pass", String("                                                                ").c_str());
-                prefs.remove("ssid");
-                prefs.remove("pass");
-                WiFi.disconnect(true, true);
-                if (udpReady) udp.stop();
-                udpReady = false;
-                setBroadcast(false);
+                forgetWifi();
                 break;
             case 8:
                 screenOffIndex = (screenOffIndex + 1) % 4;
@@ -1118,7 +1136,6 @@ void wakeScreen() {
 void startWifi() {
     String ssid = prefs.getString("ssid", "");
     if (!ssid.length()) return;
-    WiFi.persistent(false);  // a senha fica só em um lugar, que "Esquecer" consegue apagar
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), prefs.getString("pass", "").c_str());
 }
@@ -1145,6 +1162,7 @@ void setup() {
     Serial.begin(115200);
     Serial.setTxTimeoutMs(0);
     input.reserve(2048);
+    WiFi.persistent(false);  // antes de qualquer uso do Wi-Fi, inclusive a busca de redes
     prefs.begin("tokenmon");
     language = constrain(prefs.getInt("lang", 0), 0, 2);
     brightness = constrain(prefs.getInt("bright", 2), 0, 4);
