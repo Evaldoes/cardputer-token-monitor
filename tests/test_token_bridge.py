@@ -208,6 +208,21 @@ def test_varios_aparelhos_pareados():
     assert paired_serials({}) == []
 
 
+def test_serial_vazio_nao_conta_como_pareado():
+    from token_bridge import paired_serials
+    assert paired_serials({"device_serials": ["", None, "a"]}) == ["a"]
+
+
+def test_remover_pareamento(tmp_path):
+    from token_bridge import unpair
+    cfg = tmp_path / "c.json"
+    cfg.write_text('{"device_serials": ["a", "b"]}')
+    unpair("a", cfg)
+    assert json.loads(cfg.read_text())["device_serials"] == ["b"]
+    with __import__("pytest").raises(SystemExit):
+        unpair("a", cfg)
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}

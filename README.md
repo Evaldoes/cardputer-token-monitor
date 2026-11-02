@@ -280,7 +280,7 @@ Create `~/.config/cardputer-token-monitor.json`. It is re-read on every cycle, s
   "budget_daily_usd": 20,
   "window_warn_minutes": 30,
   "wifi_broadcast": false,
-  "device_serial": "set by --pair",
+  "device_serials": ["set by --pair"],
   "commands": {
     "1": ["code", "/path/to/repos"],
     "2": ["playerctl", "play-pause"],
@@ -295,7 +295,7 @@ Create `~/.config/cardputer-token-monitor.json`. It is re-read on every cycle, s
 | `budget_daily_usd` | Alert when today's estimated cost reaches this; `0` turns it off | `0` |
 | `window_warn_minutes` | Alert when the 5-hour window has this many minutes left | `30` |
 | `wifi_broadcast` | Broadcast totals on the local network | `false` |
-| `device_serial` | Paired device, set by `--pair`; keep it when editing | Empty |
+| `device_serials` | Paired devices, set by `--pair` and `--unpair`; keep it when editing | Empty |
 | `commands` | Key `1`-`9` mapped to a program and its arguments | Empty |
 
 If several alerts apply, only one shows: budget, then goal, then window.
@@ -313,7 +313,8 @@ uv run --with pyserial bridge/token_bridge.py [options]
 | `--port PORT` | Serial port. Ignored once paired, which uses the paired device | Find an Espressif device |
 | `--interval SECONDS` | Time between updates | `5` |
 | `--once` | Print one summary and exit, without a device | |
-| `--pair` | Pair with the only connected Espressif device and exit | |
+| `--pair` | Add the only connected Espressif device to the paired list and exit | |
+| `--unpair SERIAL` | Remove a device from the paired list and exit | |
 | `--wifi SSID` | Send Wi-Fi credentials by USB and exit; requires `--port` | |
 
 Without pairing or `--port`, a device found automatically receives totals only.

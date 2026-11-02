@@ -280,7 +280,7 @@ Crie o arquivo `~/.config/cardputer-token-monitor.json`. Ele é relido a cada ci
   "budget_daily_usd": 20,
   "window_warn_minutes": 30,
   "wifi_broadcast": false,
-  "device_serial": "definido pelo --pair",
+  "device_serials": ["definido pelo --pair"],
   "commands": {
     "1": ["code", "/caminho/dos/repos"],
     "2": ["playerctl", "play-pause"],
@@ -295,7 +295,7 @@ Crie o arquivo `~/.config/cardputer-token-monitor.json`. Ele é relido a cada ci
 | `budget_daily_usd` | Alerta quando o custo estimado de hoje chega a esse valor; `0` desliga | `0` |
 | `window_warn_minutes` | Alerta quando restam esses minutos na janela de 5 horas | `30` |
 | `wifi_broadcast` | Transmite os totais na rede local | `false` |
-| `device_serial` | Aparelho pareado, definido pelo `--pair`; mantenha ao editar | Vazio |
+| `device_serials` | Aparelhos pareados, definidos por `--pair` e `--unpair`; mantenha ao editar | Vazio |
 | `commands` | Liga as teclas `1` a `9` a um programa e seus argumentos | Vazio |
 
 Se vários alertas valerem ao mesmo tempo, só um aparece: orçamento, depois meta, depois janela.
@@ -313,7 +313,8 @@ uv run --with pyserial bridge/token_bridge.py [opções]
 | `--port PORTA` | Porta serial. Ignorada depois do pareamento, que usa o aparelho pareado | Procura um aparelho Espressif |
 | `--interval SEGUNDOS` | Tempo entre atualizações | `5` |
 | `--once` | Imprime um resumo e sai, sem aparelho | |
-| `--pair` | Pareia com o único aparelho Espressif conectado e sai | |
+| `--pair` | Adiciona o único aparelho Espressif conectado à lista de pareados e sai | |
+| `--unpair SERIAL` | Remove um aparelho da lista de pareados e sai | |
 | `--wifi SSID` | Envia as credenciais de Wi-Fi pela USB e sai; exige `--port` | |
 
 Sem pareamento nem `--port`, um aparelho encontrado automaticamente recebe só os totais.

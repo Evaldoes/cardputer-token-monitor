@@ -317,7 +317,7 @@ def paired_serials(config):
     serials = list(config.get("device_serials") or [])
     if config.get("device_serial") and config["device_serial"] not in serials:
         serials.insert(0, config["device_serial"])
-    return serials
+    return [s for s in serials if isinstance(s, str) and s]
 
 
 def find_port(serials=()):
@@ -333,6 +333,8 @@ def pair():
     found = [p for p in list_ports.comports() if p.vid == ESPRESSIF_VID]
     if len(found) != 1:
         raise SystemExit(f"Conecte exatamente um aparelho Espressif (encontrei {len(found)}).")
+    if not found[0].serial_number:
+        raise SystemExit("O aparelho não informa número de série; não dá para pareá-lo.")
     config = load_config()
     serials = paired_serials(config)
     if found[0].serial_number not in serials:
@@ -352,6 +354,16 @@ def open_port(port):
     return ser
 
 
+def unpair(serial, path=CONFIG):
+    config = load_config(path)
+    serials = paired_serials(config)
+    if serial not in serials:
+        raise SystemExit(f"{serial} não está pareado. Pareados: {', '.join(serials) or 'nenhum'}")
+    serials.remove(serial)
+    save_config({**config, "device_serials": serials, "device_serial": ""}, path)
+    print(f"Pareamento de {serial} removido.")
+
+
 def send_wifi(args):
     password = getpass.getpass(f"Senha de {args.wifi}: ")
     # A senha só vai para uma porta escolhida por quem digita, nunca para a primeira encontrada.
@@ -368,7 +380,11 @@ def main():
     ap.add_argument("--once", action="store_true", help="imprime o resumo e sai, sem usar a serial")
     ap.add_argument("--wifi", metavar="SSID", help="grava as credenciais de Wi-Fi no aparelho e sai")
     ap.add_argument("--pair", action="store_true", help="pareia com o aparelho conectado e sai")
+    ap.add_argument("--unpair", metavar="SERIAL", help="remove o pareamento de um aparelho e sai")
     args = ap.parse_args()
+    if args.unpair:
+        unpair(args.unpair)
+        return
     if args.pair:
         pair()
         return
