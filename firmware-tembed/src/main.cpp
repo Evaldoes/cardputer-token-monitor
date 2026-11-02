@@ -178,6 +178,7 @@ uint64_t petLastDay = 0, petEpoch = 0;
 uint32_t evDone = 0, evError = 0, reactUntil = 0;
 int reactType = 0;
 String input;
+bool forgetFailed = false;
 static const int VIEW_COUNT = 8, PET_ITEMS = 6, SETTING_ITEMS = 12;
 bool muted = false, sdReady = false, udpReady = false, gameOver = false;
 int pomoState = 0, gameScore = 0, gameBest = 0, gameObsH = 24;  // pomoState: 0 desligado, 1 foco, 2 pausa
@@ -744,7 +745,7 @@ void renderSettings() {
                             tr(S_POMODORO), tr(S_WIFI), tr(S_FORGET), tr(S_BROADCAST), tr(S_BACK)};
     String values[] = {LANGUAGES[language], THEMES[themeIndex].name, MASCOT_COLORS[mascotIndex].name[language],
                        muted ? tr(S_OFF) : tr(S_ON), String(brightness + 1) + "/5", ledsOn ? tr(S_ON) : tr(S_OFF), off,
-                       pomoState ? tr(S_ON) : tr(S_OFF), wifiStatus(), "",
+                       pomoState ? tr(S_ON) : tr(S_OFF), wifiStatus(), forgetFailed ? "ERRO" : "",
                        prefs.getBool("bcast", false) ? tr(S_ON) : tr(S_OFF), ""};
     int first = max(0, menuIndex - 4);
     for (int i = first; i < SETTING_ITEMS && i < first + 5; i++) {
@@ -765,9 +766,15 @@ void forgetWifi() {
     if (udpReady) udp.stop();
     udpReady = false;
     prefs.end();
-    nvs_flash_erase();
-    nvs_flash_init();
+    bool erased = nvs_flash_erase() == ESP_OK;
+    bool ready = nvs_flash_init() == ESP_OK;
     prefs.begin("tokenmon");
+    // Se apagar tudo falhar, ainda remove as chaves e avisa: nunca finge que deu certo.
+    if (!erased) {
+        prefs.remove("ssid");
+        prefs.remove("pass");
+    }
+    forgetFailed = !erased || !ready || prefs.isKey("ssid") || prefs.isKey("pass");
     prefs.putInt("lang", language);
     prefs.putInt("bright", brightness);
     prefs.putInt("screenOff", screenOffIndex);

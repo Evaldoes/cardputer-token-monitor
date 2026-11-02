@@ -878,15 +878,23 @@ String wifiStatus() {
 
 // Apaga a área inteira de configurações: remover a chave deixaria a senha em páginas antigas da flash,
 // e a cópia do driver de Wi-Fi fica nessa mesma área. Depois, regrava só o que não é segredo.
+bool forgetFailed = false;
+
 void forgetWifi() {
     WiFi.disconnect(true, true);
     WiFi.mode(WIFI_OFF);
     if (udpReady) udp.stop();
     udpReady = false;
     prefs.end();
-    nvs_flash_erase();
-    nvs_flash_init();
+    bool erased = nvs_flash_erase() == ESP_OK;
+    bool ready = nvs_flash_init() == ESP_OK;
     prefs.begin("tokenmon");
+    // Se apagar tudo falhar, ainda remove as chaves e avisa: nunca finge que deu certo.
+    if (!erased) {
+        prefs.remove("ssid");
+        prefs.remove("pass");
+    }
+    forgetFailed = !erased || !ready || prefs.isKey("ssid") || prefs.isKey("pass");
     prefs.putInt("lang", language);
     prefs.putInt("bright", brightness);
     prefs.putInt("screenOff", screenOffIndex);
@@ -1026,7 +1034,7 @@ void renderSettings() {
     levels += "/5";
     const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET), tr(S_BROADCAST), tr(S_SCREEN)};
     String values[] = {LANGUAGES[language], theme().name, MASCOT_COLORS[mascotIndex].name[language],
-                       muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), "",
+                       muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), forgetFailed ? "ERRO" : "",
                        prefs.getBool("bcast", false) ? tr(S_ON) : tr(S_OFF),
                        SCREEN_MINUTES[screenOffIndex] ? String(SCREEN_MINUTES[screenOffIndex]) + " min" : String(tr(S_NEVER))};
     int first = max(0, menuIndex - 6);
