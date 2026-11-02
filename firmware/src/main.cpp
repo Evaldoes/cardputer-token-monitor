@@ -12,6 +12,77 @@ static const uint32_t CONFIRM_MS = 3000;
 static const int UDP_PORT = 47474;
 static const int SD_SCK = 40, SD_MISO = 39, SD_MOSI = 14, SD_CS = 12;
 
+enum Str {S_TODAY, S_WEEK, S_SESSION, S_WAITING_PC, S_NO_DATA, S_PAUSED, S_MUTED, S_FORECAST, S_PROJECTS, S_NO_PROJECTS, S_SESSIONS, S_NO_SESSIONS, S_ST_WAITING, S_ST_WORKING, S_ST_IDLE, S_RECORDS, S_STREAK, S_RECORD, S_GOAL, S_PERMISSION, S_SEE_TERMINAL, S_APPROVE_AGAIN, S_APPROVE_HINT, S_PET_TITLE, S_FOOD, S_ENERGY, S_JOY, S_PET_HINT1, S_PET_HINT2, S_M_ASLEEP, S_M_HUNGRY, S_M_TIRED, S_M_SAD, S_M_HAPPY, S_M_OK, S_NIGHT, S_MORNING, S_WAKE_HINT, S_FULL, S_YUM, S_LOVE, S_EXHAUSTED, S_STARVING, S_BALL, S_SETTINGS, S_LANGUAGE, S_THEME, S_MASCOT, S_SOUND, S_ON, S_OFF, S_BRIGHTNESS, S_WIFI, S_WIFI_FORGET, S_NONE, S_CONNECTED, S_CONNECTING, S_FAILED, S_MENU_HINT, S_NETWORKS, S_SCANNING, S_NO_NETWORKS, S_NET_HINT, S_PASSWORD, S_PASS_HINT, S_PC_NOTE, S_COUNT};
+static const char *const STRINGS[S_COUNT][3] = {
+    {"HOJE", "TODAY", "HOY"},
+    {"SEMANA", "WEEK", "SEMANA"},
+    {"SESSAO", "SESSION", "SESION"},
+    {"aguardando PC", "waiting for PC", "esperando PC"},
+    {"SEM DADOS", "NO DATA", "SIN DATOS"},
+    {"PAUSADO", "PAUSED", "PAUSADO"},
+    {"mudo", "muted", "mudo"},
+    {"prev", "est", "prev"},
+    {"PROJETOS 7D", "PROJECTS 7D", "PROYECTOS 7D"},
+    {"sem dados (so pela USB)", "no data (USB only)", "sin datos (solo USB)"},
+    {"SESSOES", "SESSIONS", "SESIONES"},
+    {"nenhuma (so pela USB)", "none (USB only)", "ninguna (solo USB)"},
+    {"aguarda", "waiting", "espera"},
+    {"ativo", "active", "activo"},
+    {"parado", "idle", "inactivo"},
+    {"RECORDES", "RECORDS", "RECORDS"},
+    {"sequencia: %u dias", "streak: %u days", "racha: %u dias"},
+    {"recorde: ", "record: ", "record: "},
+    {"meta: ", "goal: ", "meta: "},
+    {"PEDIDO DE PERMISSAO", "PERMISSION REQUEST", "SOLICITUD DE PERMISO"},
+    {"veja no terminal   n negar", "see terminal   n deny", "ver terminal   n negar"},
+    {"y de novo para APROVAR", "y again to APPROVE", "y otra vez para APROBAR"},
+    {"y aprovar (2x)    n negar", "y approve (2x)    n deny", "y aprobar (2x)    n negar"},
+    {"MASCOTE  nivel ", "MASCOT  level ", "MASCOTA  nivel "},
+    {"Fome", "Food", "Comida"},
+    {"Energia", "Energy", "Energia"},
+    {"Alegria", "Joy", "Alegria"},
+    {"f comer  b brincar  h carinho", "f feed  b play  h pet", "f comer  b jugar  h caricia"},
+    {"s dormir  g sair", "s sleep  g exit", "s dormir  g salir"},
+    {"dormindo...", "sleeping...", "durmiendo..."},
+    {"com fome!", "hungry!", "con hambre!"},
+    {"com sono...", "sleepy...", "con sueno..."},
+    {"triste, quer atencao", "sad, needs attention", "triste, quiere atencion"},
+    {"muito feliz!", "very happy!", "muy feliz!"},
+    {"tranquilo", "calm", "tranquilo"},
+    {"boa noite", "good night", "buenas noches"},
+    {"bom dia!", "good morning!", "buenos dias!"},
+    {"zzz... aperte s para acordar", "zzz... press s to wake", "zzz... pulsa s para despertar"},
+    {"estou cheio!", "I'm full!", "estoy lleno!"},
+    {"nham nham!", "yum yum!", "nam nam!"},
+    {"que carinho bom", "that feels nice", "que rico carino"},
+    {"cansado demais...", "too tired...", "muy cansado..."},
+    {"fome demais...", "too hungry...", "mucha hambre..."},
+    {"oba, bola!", "yay, ball!", "bien, pelota!"},
+    {"CONFIGURACOES", "SETTINGS", "AJUSTES"},
+    {"Idioma", "Language", "Idioma"},
+    {"Tema", "Theme", "Tema"},
+    {"Mascote", "Mascot", "Mascota"},
+    {"Som", "Sound", "Sonido"},
+    {"ligado", "on", "activado"},
+    {"desligado", "off", "desactivado"},
+    {"Brilho", "Brightness", "Brillo"},
+    {"Wi-Fi", "Wi-Fi", "Wi-Fi"},
+    {"Esquecer Wi-Fi", "Forget Wi-Fi", "Olvidar Wi-Fi"},
+    {"nenhum", "none", "ninguna"},
+    {"conectado", "connected", "conectado"},
+    {"conectando...", "connecting...", "conectando..."},
+    {"falhou", "failed", "fallo"},
+    {"; . mover  enter alterar  ` sair", "; . move  enter change  ` exit", "; . mover  enter cambiar  ` salir"},
+    {"REDES WI-FI", "WI-FI NETWORKS", "REDES WI-FI"},
+    {"procurando...", "scanning...", "buscando..."},
+    {"nenhuma rede", "no networks", "sin redes"},
+    {"; . mover  enter escolher  ` voltar", "; . move  enter select  ` back", "; . mover  enter elegir  ` volver"},
+    {"SENHA DE", "PASSWORD FOR", "CLAVE DE"},
+    {"enter conectar  fn+` cancelar", "enter connect  fn+` cancel", "enter conectar  fn+` cancelar"},
+    {"Conecte a USB para avisar o PC", "Plug USB to tell the PC", "Conecta USB para avisar al PC"},
+};
+static const char *const LANGUAGES[] = {"Portugues", "English", "Espanol"};
+
 struct Theme {
     const char *name;
     uint16_t bg, fg, dim, accent, warn;
@@ -54,15 +125,15 @@ static const uint8_t MASCOT[8][12] = {
     {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0}, {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
     {0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0}, {0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0},
 };
-static const struct { const char *name; uint16_t color; } MASCOT_COLORS[] = {
-    {"Coral", 0xDB8A},
-    {"Azul", 0x4D1F},
-    {"Ciano", 0x269D},
-    {"Rosa", 0xFB76},
-    {"Lilas", 0xC51F},
-    {"Verde", 0x4EF0},
-    {"Amarelo", 0xFE62},
-    {"Branco", 0xF7BE},
+static const struct { const char *name[3]; uint16_t color; } MASCOT_COLORS[] = {
+    {{"Coral", "Coral", "Coral"}, 0xDB8A},
+    {{"Azul", "Blue", "Azul"}, 0x4D1F},
+    {{"Ciano", "Cyan", "Cian"}, 0x269D},
+    {{"Rosa", "Pink", "Rosa"}, 0xFB76},
+    {{"Lilas", "Lilac", "Lila"}, 0xC51F},
+    {{"Verde", "Green", "Verde"}, 0x4EF0},
+    {{"Amarelo", "Yellow", "Amarillo"}, 0xFE62},
+    {{"Branco", "White", "Blanco"}, 0xF7BE},
 };
 static const int MASCOT_COLOR_COUNT = 8;
 
@@ -95,6 +166,11 @@ int petAnim = 0;  // 1 comida, 2 coração, 3 bola
 int mascotForce = 0;  // 1 dormindo, 2 andando, 3 pulando
 String petMsg;
 
+int language = 0;
+const char *tr(Str id) { return STRINGS[id][language]; }
+
+extern int settingsMode;
+void renderSettings();
 void petSync(uint64_t now, uint64_t day);
 void renderPet();
 
@@ -180,7 +256,7 @@ void applyLine(const String &line, bool fromUsb) {
     if (!fromUsb) {
         lastRx = millis();
         received = true;
-        return;  // Wi-Fi só atualiza totais; alertas e listas dependem da USB.
+        return;  // Sem som, listas, pedidos ou histórico: a rede só muda o que aparece na tela.
     }
     data.sessionCount = 0;
     for (JsonObject s : doc["ss"].as<JsonArray>()) {
@@ -279,16 +355,16 @@ void header(const char *title, bool stale) {
     canvas.drawString(title, 4, 2);
     canvas.setTextDatum(top_right);
     canvas.setTextColor(stale ? theme().warn : theme().dim);
-    String right = !received ? "aguardando PC" : stale ? "SEM DADOS " + data.clock : data.clock;
-    if (paused) right = "PAUSADO";
-    if (muted) right = "mudo " + right;
+    String right = !received ? String(tr(S_WAITING_PC)) : stale ? String(tr(S_NO_DATA)) + " " + data.clock : data.clock;
+    if (paused) right = tr(S_PAUSED);
+    if (muted) right = String(tr(S_MUTED)) + " " + right;
     if (millis() < toastUntil) right = toast;
     canvas.drawString(right, 236, 2);
     canvas.setTextDatum(top_left);
 }
 
 void renderTotals(int v, bool stale) {
-    static const char *titles[] = {"HOJE", "SEMANA", "SESSAO"};
+    const char *titles[] = {tr(S_TODAY), tr(S_WEEK), tr(S_SESSION)};
     uint64_t total[] = {data.day, data.week, data.sess};
     uint64_t cache[] = {data.dayCache, data.weekCache, data.sessCache};
     float cost[] = {data.costDay, data.costWeek, data.costSess};
@@ -310,20 +386,20 @@ void renderTotals(int v, bool stale) {
     canvas.setTextColor(data.alert == "janela" ? theme().warn : stale ? theme().dim : theme().fg);
     canvas.drawString(left, 132, 94);
     canvas.setTextColor(theme().dim);
-    canvas.drawString("prev " + human(data.forecast), 4, 118);
+    canvas.drawString(String(tr(S_FORECAST)) + " " + human(data.forecast), 4, 118);
     canvas.setTextDatum(top_right);
     canvas.drawString(data.model, 236, 118);
     canvas.setTextDatum(top_left);
 }
 
 void renderProjects(bool stale) {
-    header("PROJETOS 7D", stale);
+    header(tr(S_PROJECTS), stale);
     canvas.setFont(&fonts::Font2);
     uint64_t top = 1;
     for (int i = 0; i < data.projectCount; i++) top = max(top, data.projects[i].value);
     if (!data.projectCount) {
         canvas.setTextColor(theme().dim);
-        canvas.drawString("sem dados (nao vem pelo Wi-Fi)", 4, 30);
+        canvas.drawString(tr(S_NO_PROJECTS), 4, 30);
     }
     for (int i = 0; i < data.projectCount; i++) {
         int y = 24 + i * 27;
@@ -337,11 +413,11 @@ void renderProjects(bool stale) {
 }
 
 void renderSessions(bool stale) {
-    header("SESSOES", stale);
+    header(tr(S_SESSIONS), stale);
     canvas.setFont(&fonts::Font2);
     if (!data.sessionCount) {
         canvas.setTextColor(theme().dim);
-        canvas.drawString("nenhuma (instale os hooks)", 4, 30);
+        canvas.drawString(tr(S_NO_SESSIONS), 4, 30);
     }
     for (int i = 0; i < data.sessionCount; i++) {
         int y = 26 + i * 26;
@@ -352,18 +428,20 @@ void renderSessions(bool stale) {
         canvas.drawString(data.sessions[i].name, 22, y);
         canvas.setTextDatum(top_right);
         canvas.setTextColor(color);
-        canvas.drawString(st == "waiting" ? "aguarda" : st == "working" ? "ativo" : "parado", 236, y);
+        canvas.drawString(st == "waiting" ? tr(S_ST_WAITING) : st == "working" ? tr(S_ST_WORKING) : tr(S_ST_IDLE), 236, y);
         canvas.setTextDatum(top_left);
     }
 }
 
 void renderStats(bool stale) {
-    header("RECORDES", stale);
+    header(tr(S_RECORDS), stale);
     canvas.setFont(&fonts::Font2);
     canvas.setTextColor(theme().fg);
-    canvas.drawString("sequencia: " + String(data.streak) + " dias", 4, 22);
-    canvas.drawString("recorde: " + human(data.record), 4, 40);
-    if (data.goal) canvas.drawString("meta: " + human(data.day) + " / " + human(data.goal), 4, 58);
+    char streak[32];
+    snprintf(streak, sizeof streak, tr(S_STREAK), data.streak);
+    canvas.drawString(streak, 4, 22);
+    canvas.drawString(String(tr(S_RECORD)) + human(data.record), 4, 40);
+    if (data.goal) canvas.drawString(String(tr(S_GOAL)) + human(data.day) + " / " + human(data.goal), 4, 58);
     const uint16_t LEVELS[] = {shade(theme().dim, 35), shade(theme().accent, 40), shade(theme().accent, 60),
                                shade(theme().accent, 80), theme().accent};
     for (int i = 0; i < 28; i++) {
@@ -377,7 +455,7 @@ void renderPending() {
     canvas.setFont(&fonts::Font2);
     canvas.setTextDatum(top_left);
     canvas.setTextColor(theme().warn);
-    canvas.drawString("PEDIDO DE PERMISSAO", 4, 2);
+    canvas.drawString(tr(S_PERMISSION), 4, 2);
     drawMascot(190, 2, 3, false);
     canvas.setFont(&fonts::FreeSansBold9pt7b);
     canvas.setTextColor(theme().fg);
@@ -393,8 +471,8 @@ void renderPending() {
     canvas.setTextWrap(false);
     bool arming = armedId == data.pendingId && millis() < confirmUntil;
     canvas.setTextColor(arming ? theme().warn : theme().fg);
-    canvas.drawString(!pendingAllowed ? "veja no terminal   n negar"
-                      : arming ? "y de novo para APROVAR" : "y aprovar (2x)    n negar", 4, 116);
+    canvas.drawString(!pendingAllowed ? tr(S_SEE_TERMINAL)
+                      : arming ? tr(S_APPROVE_AGAIN) : tr(S_APPROVE_HINT), 4, 116);
 }
 
 void render() {
@@ -402,6 +480,8 @@ void render() {
     canvas.fillSprite(theme().bg);
     if (data.pendingId.length() && millis() - lastUsb < STALE_MS) {
         renderPending();
+    } else if (settingsMode) {
+        renderSettings();
     } else if (petOpen) {
         renderPet();
     } else if (view < 3) {
@@ -464,12 +544,12 @@ int petLevel() {
 }
 
 const char *petMood() {
-    if (pet.asleep) return "dormindo...";
-    if (pet.food < 25) return "com fome!";
-    if (pet.energy < 25) return "com sono...";
-    if (pet.joy < 25) return "triste, quer atencao";
-    if (pet.joy > 75 && pet.food > 50) return "muito feliz!";
-    return "tranquilo";
+    if (pet.asleep) return tr(S_M_ASLEEP);
+    if (pet.food < 25) return tr(S_M_HUNGRY);
+    if (pet.energy < 25) return tr(S_M_TIRED);
+    if (pet.joy < 25) return tr(S_M_SAD);
+    if (pet.joy > 75 && pet.food > 50) return tr(S_M_HAPPY);
+    return tr(S_M_OK);
 }
 
 void petSay(const String &text, int anim, int freq) {
@@ -484,23 +564,23 @@ void petSay(const String &text, int anim, int freq) {
 void petKey(char c) {
     if (c == 's') {
         pet.asleep = !pet.asleep;
-        petSay(pet.asleep ? "boa noite" : "bom dia!", 0, 500);
+        petSay(pet.asleep ? tr(S_NIGHT) : tr(S_MORNING), 0, 500);
     } else if (pet.asleep) {
-        petSay("zzz... aperte s para acordar", 0, 0);
+        petSay(tr(S_WAKE_HINT), 0, 0);
     } else if (c == 'f') {
-        if (pet.food >= 95) return petSay("estou cheio!", 0, 0);
+        if (pet.food >= 95) return petSay(tr(S_FULL), 0, 0);
         pet.food = min(100.0f, pet.food + 25);
-        petSay("nham nham!", 1, 900);
+        petSay(tr(S_YUM), 1, 900);
     } else if (c == 'h') {
         pet.joy = min(100.0f, pet.joy + 10);
-        petSay("que carinho bom", 2, 1400);
+        petSay(tr(S_LOVE), 2, 1400);
     } else if (c == 'b') {
-        if (pet.energy < 15) return petSay("cansado demais...", 0, 0);
-        if (pet.food < 10) return petSay("fome demais...", 0, 0);
+        if (pet.energy < 15) return petSay(tr(S_EXHAUSTED), 0, 0);
+        if (pet.food < 10) return petSay(tr(S_STARVING), 0, 0);
         pet.joy = min(100.0f, pet.joy + 20);
         pet.energy = max(0.0f, pet.energy - 10);
         pet.food = max(0.0f, pet.food - 5);
-        petSay("oba, bola!", 3, 1200);
+        petSay(tr(S_BALL), 3, 1200);
     }
 }
 
@@ -516,7 +596,7 @@ void renderPet() {
     canvas.setFont(&fonts::Font2);
     canvas.setTextDatum(top_left);
     canvas.setTextColor(theme().accent);
-    canvas.drawString("MASCOTE  nivel " + String(petLevel()), 4, 2);
+    canvas.drawString(String(tr(S_PET_TITLE)) + String(petLevel()), 4, 2);
     canvas.setTextDatum(top_right);
     canvas.setTextColor(theme().dim);
     if (millis() < toastUntil) canvas.drawString(toast, 236, 2);
@@ -538,15 +618,188 @@ void renderPet() {
             canvas.fillCircle(8 + frame * 26, 30 + (frame % 2) * 8, 5, theme().accent);
         }
     }
-    drawStat("Fome", pet.food, 24);
-    drawStat("Energia", pet.energy, 42);
-    drawStat("Alegria", pet.joy, 60);
+    drawStat(tr(S_FOOD), pet.food, 24);
+    drawStat(tr(S_ENERGY), pet.energy, 42);
+    drawStat(tr(S_JOY), pet.joy, 60);
     canvas.setTextColor(theme().fg);
     canvas.drawString(millis() < petMsgUntil ? petMsg : String(petMood()), 104, 84);
     canvas.setFont(&fonts::Font0);
     canvas.setTextColor(theme().dim);
-    canvas.drawString("f comer  b brincar  h carinho", 4, 110);
-    canvas.drawString("s dormir  g sair", 4, 122);
+    canvas.drawString(tr(S_PET_HINT1), 4, 110);
+    canvas.drawString(tr(S_PET_HINT2), 4, 122);
+}
+
+// Configurações: 0 fechada, 1 menu, 2 lista de redes, 3 senha.
+int settingsMode = 0, menuIndex = 0, netIndex = 0, netCount = 0, brightness = 2;
+static const int MENU_ITEMS = 7;
+String netNames[6], wifiPassword;
+bool netOpen[6], scanning = false, broadcastPending = false, broadcastValue = false;
+static const uint8_t BRIGHTNESS[] = {25, 45, 70, 110, 180};
+
+void startWifi();
+
+// O PC só transmite se souber que há quem ouça; sem USB agora, avisa quando ela voltar.
+void requestBroadcast(bool enabled) {
+    broadcastValue = enabled;
+    broadcastPending = true;
+}
+
+void connectTo(const String &ssid, const String &password) {
+    prefs.putString("ssid", ssid);
+    prefs.putString("pass", password);
+    WiFi.disconnect();
+    startWifi();
+    requestBroadcast(true);
+    settingsMode = 1;
+    menuIndex = 5;
+}
+
+String wifiStatus() {
+    String ssid = prefs.getString("ssid", "");
+    if (!ssid.length()) return tr(S_NONE);
+    wl_status_t st = WiFi.status();
+    if (st == WL_CONNECTED) return ssid;
+    if (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) return ssid + " (" + tr(S_FAILED) + ")";
+    return String(tr(S_CONNECTING));
+}
+
+void settingsKey(char c) {
+    if (settingsMode == 3) {
+        if (c == 27) settingsMode = 2;
+        else if (c == '\b') wifiPassword.remove(max(0, (int)wifiPassword.length() - 1));
+        else if (c == '\n') connectTo(netNames[netIndex], wifiPassword);
+        else if (c >= 32 && c < 127 && wifiPassword.length() < 63) wifiPassword += c;
+        return;
+    }
+    if (settingsMode == 2) {
+        if (c == '`' || c == 27) settingsMode = 1;
+        else if (c == ';' && netCount) netIndex = (netIndex + netCount - 1) % netCount;
+        else if (c == '.' && netCount) netIndex = (netIndex + 1) % netCount;
+        else if (c == '\n' && netCount) {
+            if (netOpen[netIndex]) {
+                connectTo(netNames[netIndex], "");
+            } else {
+                wifiPassword = "";
+                settingsMode = 3;
+            }
+        }
+        return;
+    }
+    if (c == '`' || c == 27) {
+        settingsMode = 0;
+    } else if (c == ';') {
+        menuIndex = (menuIndex + MENU_ITEMS - 1) % MENU_ITEMS;
+    } else if (c == '.') {
+        menuIndex = (menuIndex + 1) % MENU_ITEMS;
+    } else if (c == '\n') {
+        switch (menuIndex) {
+            case 0:
+                language = (language + 1) % 3;
+                prefs.putInt("lang", language);
+                break;
+            case 1:
+                themeIndex = (themeIndex + 1) % THEME_COUNT;
+                prefs.putInt("theme", themeIndex);
+                break;
+            case 2:
+                mascotIndex = (mascotIndex + 1) % MASCOT_COLOR_COUNT;
+                prefs.putInt("mascot", mascotIndex);
+                break;
+            case 3:
+                muted = !muted;
+                prefs.putBool("muted", muted);
+                break;
+            case 4:
+                brightness = (brightness + 1) % 5;
+                prefs.putInt("bright", brightness);
+                M5Cardputer.Display.setBrightness(BRIGHTNESS[brightness]);
+                break;
+            case 5:
+                WiFi.mode(WIFI_STA);
+                WiFi.scanDelete();
+                WiFi.scanNetworks(true);
+                scanning = true;
+                netCount = netIndex = 0;
+                settingsMode = 2;
+                break;
+            case 6:
+                prefs.remove("ssid");
+                prefs.remove("pass");
+                WiFi.disconnect(true);
+                if (udpReady) udp.stop();
+                udpReady = false;
+                requestBroadcast(false);
+                break;
+        }
+    }
+}
+
+void pollScan() {
+    if (!scanning) return;
+    int found = WiFi.scanComplete();
+    if (found == WIFI_SCAN_RUNNING) return;
+    scanning = false;
+    netCount = 0;
+    for (int i = 0; i < found && netCount < 6; i++) {
+        String ssid = WiFi.SSID(i);
+        if (!ssid.length()) continue;
+        netNames[netCount] = ssid;
+        netOpen[netCount++] = WiFi.encryptionType(i) == WIFI_AUTH_OPEN;
+    }
+    WiFi.scanDelete();
+    // A busca não pode derrubar a conexão salva.
+    if (WiFi.status() != WL_CONNECTED) startWifi();
+}
+
+void renderSettings() {
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextDatum(top_left);
+    canvas.setTextColor(theme().accent);
+    if (settingsMode == 3) {
+        canvas.drawString(String(tr(S_PASSWORD)) + " " + netNames[netIndex], 4, 2);
+        canvas.setTextColor(theme().fg);
+        // Mostra só o último caractere, para conferir a digitação sem expor a senha.
+        String shown;
+        for (unsigned i = 0; i + 1 < wifiPassword.length(); i++) shown += '*';
+        if (wifiPassword.length()) shown += wifiPassword[wifiPassword.length() - 1];
+        canvas.drawString(shown.length() > 30 ? shown.substring(shown.length() - 30) : shown, 4, 50);
+        canvas.drawFastHLine(4, 68, 232, theme().dim);
+        canvas.setFont(&fonts::Font0);
+        canvas.setTextColor(theme().dim);
+        canvas.drawString(tr(S_PASS_HINT), 4, 122);
+        return;
+    }
+    if (settingsMode == 2) {
+        canvas.drawString(tr(S_NETWORKS), 4, 2);
+        canvas.setTextColor(theme().dim);
+        if (scanning) canvas.drawString(tr(S_SCANNING), 4, 40);
+        else if (!netCount) canvas.drawString(tr(S_NO_NETWORKS), 4, 40);
+        for (int i = 0; i < netCount; i++) {
+            canvas.setTextColor(i == netIndex ? theme().accent : theme().fg);
+            canvas.drawString(String(i == netIndex ? "> " : "  ") + netNames[i].substring(0, 26), 4, 20 + i * 16);
+        }
+        canvas.setFont(&fonts::Font0);
+        canvas.setTextColor(theme().dim);
+        canvas.drawString(tr(S_NET_HINT), 4, 122);
+        return;
+    }
+    canvas.drawString(tr(S_SETTINGS), 4, 2);
+    String levels(brightness + 1);
+    levels += "/5";
+    const char *labels[] = {tr(S_LANGUAGE), tr(S_THEME), tr(S_MASCOT), tr(S_SOUND), tr(S_BRIGHTNESS), tr(S_WIFI), tr(S_WIFI_FORGET)};
+    String values[] = {LANGUAGES[language], theme().name, MASCOT_COLORS[mascotIndex].name[language],
+                       muted ? tr(S_OFF) : tr(S_ON), levels, wifiStatus(), ""};
+    for (int i = 0; i < MENU_ITEMS; i++) {
+        int y = 19 + i * 14;
+        canvas.setTextColor(i == menuIndex ? theme().accent : theme().fg);
+        canvas.drawString(String(i == menuIndex ? "> " : "  ") + labels[i], 4, y);
+        canvas.setTextDatum(top_right);
+        canvas.drawString(values[i].substring(0, 16), 236, y);
+        canvas.setTextDatum(top_left);
+    }
+    canvas.setFont(&fonts::Font0);
+    canvas.setTextColor(theme().dim);
+    canvas.drawString(tr(S_MENU_HINT), 4, 122);
 }
 
 void answerPending(const char *value) {
@@ -572,11 +825,19 @@ void handleKey(char c) {
         }
         return;
     }
+    if (settingsMode) {
+        settingsKey(c);
+        return;
+    }
+    if (c == 'o') {
+        settingsMode = 1;
+        return;
+    }
     if (c == 'g') {
         petOpen = !petOpen;
         return;
     }
-    if (petOpen && c != 't' && c != 'c' && c != 'm') {
+    if (petOpen && c != 't' && c != 'c' && c != 'm' && c != '\b' && c != 27) {
         petKey(c);
         return;
     }
@@ -587,7 +848,7 @@ void handleKey(char c) {
     } else if (c == 'c') {
         mascotIndex = (mascotIndex + 1) % MASCOT_COLOR_COUNT;
         prefs.putInt("mascot", mascotIndex);
-        showToast(MASCOT_COLORS[mascotIndex].name);
+        showToast(MASCOT_COLORS[mascotIndex].name[language]);
     } else if (c == 'm') {
         muted = !muted;
         prefs.putBool("muted", muted);
@@ -596,6 +857,8 @@ void handleKey(char c) {
         Serial.println("P");
     } else if (c >= '1' && c <= '9') {
         Serial.printf("C %c\n", c);
+    } else if (c == '\b' || c == 27) {
+        // Teclas de edição só têm função nas configurações.
     } else if (c == ',') {
         view = (view + VIEW_COUNT - 1) % VIEW_COUNT;
     } else {
@@ -614,9 +877,8 @@ void handleSerialLine(const String &line) {
     if (line.startsWith("W ")) {
         int tab = line.indexOf('\t');
         if (tab < 0) return;
-        prefs.putString("ssid", line.substring(2, tab));
-        prefs.putString("pass", line.substring(tab + 1));
-        startWifi();
+        connectTo(line.substring(2, tab), line.substring(tab + 1));
+        settingsMode = 0;
         return;
     }
     applyLine(line, true);
@@ -634,6 +896,9 @@ void setup() {
     Serial.setTxTimeoutMs(0);
     input.reserve(2048);
     prefs.begin("tokenmon");
+    language = constrain(prefs.getInt("lang", 0), 0, 2);
+    brightness = constrain(prefs.getInt("bright", 2), 0, 4);
+    M5Cardputer.Display.setBrightness(BRIGHTNESS[brightness]);
     themeIndex = constrain(prefs.getInt("theme", 0), 0, THEME_COUNT - 1);
     mascotIndex = constrain(prefs.getInt("mascot", 0), 0, MASCOT_COLOR_COUNT - 1);
     muted = prefs.getBool("muted", false);
@@ -647,8 +912,9 @@ void loop() {
     M5Cardputer.update();
     if (M5Cardputer.Keyboard.isChange() && M5Cardputer.Keyboard.isPressed()) {
         auto state = M5Cardputer.Keyboard.keysState();
-        for (char c : state.word) handleKey(c);
+        for (char c : state.word) handleKey(state.fn && c == '`' ? 27 : c);
         if (state.enter) handleKey('\n');
+        if (state.del) handleKey('\b');
     }
     while (Serial.available()) {
         char c = Serial.read();
@@ -658,6 +924,11 @@ void loop() {
         } else if (input.length() < 4096) {
             input += c;
         }
+    }
+    pollScan();
+    if (broadcastPending && lastUsb && millis() - lastUsb < STALE_MS) {
+        Serial.printf("B %d\n", broadcastValue ? 1 : 0);
+        broadcastPending = false;
     }
     if (WiFi.status() == WL_CONNECTED) {
         if (!udpReady) udpReady = udp.begin(UDP_PORT);

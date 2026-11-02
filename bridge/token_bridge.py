@@ -256,9 +256,19 @@ def load_config(path=CONFIG):
         return dict(DEFAULTS)
 
 
-def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trusted=False):
+def save_config(config, path=CONFIG):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(config, indent=2) + "\n")
+    tmp.replace(path)
+
+
+def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trusted=False, config_path=CONFIG):
     """Trata uma linha vinda do aparelho. Devolve "pause" se ele pediu para alternar a pausa."""
     parts = line.strip().split()
+    if trusted and len(parts) == 2 and parts[0] == "B" and parts[1] in ("0", "1"):
+        save_config({**load_config(config_path), "wifi_broadcast": parts[1] == "1"}, config_path)
+        return None
     if parts[:1] == ["P"]:
         return "pause"
     if not trusted:  # aparelho não pareado não decide nem executa nada
@@ -288,11 +298,7 @@ def pair():
     found = [p for p in list_ports.comports() if p.vid == ESPRESSIF_VID]
     if len(found) != 1:
         raise SystemExit(f"Conecte exatamente um aparelho Espressif (encontrei {len(found)}).")
-    config = {**load_config(), "device_serial": found[0].serial_number}
-    CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    tmp = CONFIG.with_suffix(".tmp")
-    tmp.write_text(json.dumps(config, indent=2) + "\n")
-    tmp.replace(CONFIG)
+    save_config({**load_config(), "device_serial": found[0].serial_number})
     print(f"Pareado com {found[0].serial_number} em {found[0].device}.")
 
 

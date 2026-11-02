@@ -19,7 +19,9 @@
 - **Streak, record and 28-day heatmap**
 - **10 themes:** Claude, Retro, Matrix, Ocean, Cyan, Midnight, Pink, Lavender, Cotton Candy and Peach
 - **8 mascot colors:** change them separately from the theme
-- **USB or Wi-Fi:** Wi-Fi is display-only and sends totals only
+- **On-device settings:** press `o` for language, theme, mascot color, sound, brightness and Wi-Fi
+- **3 languages:** Portuguese, English and Spanish
+- **USB or Wi-Fi:** choose a network and type its password on the device; Wi-Fi sends totals only
 - **microSD history:** daily totals in `token-history.csv` (FAT32)
 
 ## Screens
@@ -31,6 +33,7 @@ Today, Week and Session show totals, cost, chart, rate and forecast. Then come P
 | Key | Action |
 | --- | --- |
 | `,` / most other keys | Previous / next screen |
+| `o` | Settings (`;` `.` move, Enter change, `` ` `` exit) |
 | `g` | Open or close the pet screen |
 | `t` | Next theme |
 | `c` | Next mascot color |
@@ -89,7 +92,6 @@ python3 scripts/install_hooks.py            # agent status (backs up ~/.claude/s
 python3 scripts/install_hooks.py --approve  # also approve from the device
 python3 scripts/install_hooks.py --remove   # undo
 ./scripts/install_service.sh                # start on login (Linux, systemd)
-uv run --with pyserial bridge/token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"  # store Wi-Fi on the device
 ```
 
 **About `--approve`:** pair the device first. Only short, single-line Bash commands shown in full can be approved; anything else can only be denied on the device or answered in the terminal. Approval is a convenience, **not a security boundary:** decisions travel through files owned by your user, so any process running as you, including one started by Claude, could forge a response. The USB serial number used for pairing can be spoofed, so it only prevents mix-ups. Don't enable approval if that matters to you. Each permission request first waits up to 25 s for the device, delaying the terminal prompt. With no answer, or with the bridge stopped, the decision goes back to the terminal; it never approves by default. Anyone holding the device can approve commands on your PC, so enable it only if that is acceptable.
@@ -106,7 +108,13 @@ Config lives in `~/.config/cardputer-token-monitor.json`:
 }
 ```
 
-Keep `device_serial` when editing this file. Commands run on your PC without a shell, and only those you list. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof the display, so they never carry project names or approvals, and the device ignores their lists and never writes them to the microSD.
+Keep `device_serial` when editing this file. Commands run on your PC without a shell, and only those you list. 
+
+## Wi-Fi
+
+Open Settings (`o`), choose Wi-Fi, pick a network and type its password. A paired device connected by USB tells the PC to start broadcasting; otherwise set `wifi_broadcast` to `true` in the config. The PC and device must be on the same network, and the PC must stay on. Networks with a hidden name aren't listed. To use a password with `` ` ``, run `token_bridge.py --port /dev/ttyACM0 --wifi "MyNetwork"`.
+
+The password is stored unencrypted on the device, so anyone holding it could extract it. Wi-Fi updates are unauthenticated broadcasts: anyone on your network can read the totals or spoof what the screen shows, including the mascot's mood. They never carry project names or approvals, make no sound, and are never written to the microSD.
 
 ## Web installer
 
@@ -122,7 +130,7 @@ Claude Code hooks -> ~/.cache/cardputer-token-monitor -> bridge/token_bridge.py
 ## Project status
 
 - **Tested on a real device (Linux):** mascot, totals, keys and themes, plus agent status through hooks.
-- **Not yet tested on a real device:** approval, Wi-Fi, microSD history, web installer, macOS and Windows.
+- **Not yet tested on a real device:** approval, on-device settings, languages, Wi-Fi, microSD history, web installer, macOS and Windows.
 
 ## What the numbers mean
 

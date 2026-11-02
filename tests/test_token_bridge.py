@@ -173,6 +173,16 @@ def test_aparelho_nao_pareado_nao_decide(tmp_path):
     assert not (tmp_path / "responses").exists() and calls == []
 
 
+def test_aparelho_pareado_liga_transmissao_wifi(tmp_path):
+    cfg = tmp_path / "c.json"
+    cfg.write_text('{"device_serial": "x"}')
+    handle_device_line("B 1", {}, tmp_path, trusted=False, config_path=cfg)
+    assert "wifi_broadcast" not in json.loads(cfg.read_text())
+    handle_device_line("B 1", {}, tmp_path, trusted=True, config_path=cfg)
+    saved = json.loads(cfg.read_text())
+    assert saved["wifi_broadcast"] is True and saved["device_serial"] == "x"
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}
