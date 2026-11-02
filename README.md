@@ -27,6 +27,7 @@
 - [Privacy and security](#privacy-and-security)
 - [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
+- [LilyGO T-Embed](#lilygo-t-embed)
 - [Project status](#project-status)
 - [Development](#development)
 
@@ -449,10 +450,32 @@ rm -r ~/.cache/cardputer-token-monitor ~/.config/cardputer-token-monitor.json
 uvx esptool --port /dev/ttyACM0 write-flash 0 backup/firmware-original-8MB.bin
 ```
 
+## LilyGO T-Embed
+
+This repository also has firmware for the **LilyGO T-Embed** (ESP32-S3, 16 MB flash, 1.9" screen, rotary knob and LED ring), in `firmware-tembed/`. It uses the same PC bridge and hooks. Back up the flash first, as on the Cardputer, using `0x1000000` as the size:
+
+```bash
+systemctl --user stop cardputer-token-monitor
+uvx esptool --port /dev/ttyACM0 read-flash 0 0x1000000 tembed-original.bin
+(cd firmware-tembed && uvx --from platformio pio run -t upload --upload-port /dev/ttyACM0)
+uv run --with pyserial bridge/token_bridge.py --pair
+systemctl --user start cardputer-token-monitor
+```
+
+| Control | Action |
+| --- | --- |
+| Turn | Next screen or option |
+| Click | Open the pet, or choose the option |
+| Hold | Open or close settings |
+
+The LED ring shows status: moving for working, blinking amber for waiting, green for a finished task, red for a failure or alert.
+
+It has no keyboard, so it doesn't have the mini-game, Pomodoro, Wi-Fi, shortcut keys, sound, themes, or the Weekly and Models screens. It shows permission requests, but they must be answered in the terminal, so don't use `--approve` with it. Several devices can be paired, but connect only one at a time.
+
 ## Project status
 
 - **Tested on a real device (Linux):** mascot, totals, keys, themes, Projects and Sessions screens, and agent status through hooks.
-- **Not yet confirmed on a real device:** pet, mini-game, accessories, reactions, Pomodoro, screen timeout, Weekly and Models screens, settings, languages, Wi-Fi, microSD history, approval, shortcut keys, web installer, Cardputer ADV, macOS and Windows.
+- **Not yet confirmed on a real device:** T-Embed firmware, pet, mini-game, accessories, reactions, Pomodoro, screen timeout, Weekly and Models screens, settings, languages, Wi-Fi, microSD history, approval, shortcut keys, web installer, Cardputer ADV, macOS and Windows.
 
 ## Development
 

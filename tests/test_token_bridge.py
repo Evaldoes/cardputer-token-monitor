@@ -201,6 +201,13 @@ def test_wifi_nao_expoe_modelos_nem_eventos():
     assert not {"ml", "tdn", "ed", "ee", "ia"} & set(public_view(s))
 
 
+def test_varios_aparelhos_pareados():
+    from token_bridge import paired_serials
+    assert paired_serials({"device_serial": "a", "device_serials": ["b"]}) == ["a", "b"]
+    assert paired_serials({"device_serials": ["a", "b"]}) == ["a", "b"]
+    assert paired_serials({}) == []
+
+
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}

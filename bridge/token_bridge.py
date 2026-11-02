@@ -18,7 +18,7 @@ RETENTION = timedelta(days=400)
 BLOCK = timedelta(hours=5)
 ESPRESSIF_VID = 0x303A
 UDP_PORT = 47474
-DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False, "device_serial": "", "budget_daily_usd": 0}
+DEFAULTS = {"goal_daily_tokens": 0, "window_warn_minutes": 30, "commands": {}, "wifi_broadcast": False, "device_serial": "", "device_serials": [], "budget_daily_usd": 0}
 
 # US$ por MTok: entrada, saída, leitura de cache. Escrita: 1,25x (5 min) ou 2x (1 h) a entrada.
 PRICES = {
@@ -312,11 +312,19 @@ def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trus
     return None
 
 
-def find_port(serial_number=""):
-    """Com aparelho pareado, aceita só ele. Na dúvida entre vários, não conecta."""
+def paired_serials(config):
+    """Aparelhos pareados; device_serial é o formato antigo, de um aparelho só."""
+    serials = list(config.get("device_serials") or [])
+    if config.get("device_serial") and config["device_serial"] not in serials:
+        serials.insert(0, config["device_serial"])
+    return serials
+
+
+def find_port(serials=()):
+    """Com aparelhos pareados, aceita só eles. Na dúvida entre vários, não conecta."""
     from serial.tools import list_ports
     found = [p.device for p in list_ports.comports()
-             if p.vid == ESPRESSIF_VID and (not serial_number or p.serial_number == serial_number)]
+             if p.vid == ESPRESSIF_VID and (not serials or p.serial_number in serials)]
     return found[0] if len(found) == 1 else None
 
 
@@ -325,7 +333,11 @@ def pair():
     found = [p for p in list_ports.comports() if p.vid == ESPRESSIF_VID]
     if len(found) != 1:
         raise SystemExit(f"Conecte exatamente um aparelho Espressif (encontrei {len(found)}).")
-    save_config({**load_config(), "device_serial": found[0].serial_number})
+    config = load_config()
+    serials = paired_serials(config)
+    if found[0].serial_number not in serials:
+        serials.append(found[0].serial_number)
+    save_config({**config, "device_serials": serials, "device_serial": ""})
     print(f"Pareado com {found[0].serial_number} em {found[0].device}.")
 
 
@@ -372,14 +384,14 @@ def main():
     paused = False
     next_send = 0.0
     last_key = None
-    connected_as = ""  # número de série verificado ao abrir a porta; "" se não pareado
+    connected_as = ()  # aparelhos pareados quando a porta foi aberta; vazio se nenhum
     private_ok = False
     while True:
         now = datetime.now(timezone.utc).astimezone()
         config = load_config()
         STATE.mkdir(parents=True, exist_ok=True)
         (STATE / "bridge.alive").touch()
-        paired = config["device_serial"]
+        paired = tuple(paired_serials(config))
         if ser is not None and paired != connected_as:
             # O pareamento mudou: a conexão aberta não vale mais, nem o que estava no buffer.
             ser.close()

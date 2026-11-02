@@ -27,6 +27,7 @@
 - [Privacidade e segurança](#privacidade-e-segurança)
 - [Solução de problemas](#solução-de-problemas)
 - [Desinstalação](#desinstalação)
+- [LilyGO T-Embed](#lilygo-t-embed)
 - [Estado do projeto](#estado-do-projeto)
 - [Desenvolvimento](#desenvolvimento)
 
@@ -449,10 +450,32 @@ rm -r ~/.cache/cardputer-token-monitor ~/.config/cardputer-token-monitor.json
 uvx esptool --port /dev/ttyACM0 write-flash 0 backup/firmware-original-8MB.bin
 ```
 
+## LilyGO T-Embed
+
+Este repositório também tem firmware para o **LilyGO T-Embed** (ESP32-S3, flash de 16 MB, tela de 1,9", botão giratório e anel de LEDs), em `firmware-tembed/`. Ele usa o mesmo programa do PC e os mesmos hooks. Faça o backup da flash antes, como no Cardputer, usando `0x1000000` como tamanho:
+
+```bash
+systemctl --user stop cardputer-token-monitor
+uvx esptool --port /dev/ttyACM0 read-flash 0 0x1000000 tembed-original.bin
+(cd firmware-tembed && uvx --from platformio pio run -t upload --upload-port /dev/ttyACM0)
+uv run --with pyserial bridge/token_bridge.py --pair
+systemctl --user start cardputer-token-monitor
+```
+
+| Controle | Ação |
+| --- | --- |
+| Girar | Próxima tela ou opção |
+| Clicar | Abre o bichinho ou escolhe a opção |
+| Segurar | Abre ou fecha as configurações |
+
+O anel de LEDs mostra o status: em movimento ao trabalhar, âmbar piscando ao aguardar, verde em tarefa concluída e vermelho em falha ou alerta.
+
+Ele não tem teclado, então fica sem minijogo, Pomodoro, Wi-Fi, teclas de atalho, som, temas e telas Semanal e Modelos. Ele mostra pedidos de permissão, mas a resposta é no terminal, então não use `--approve` com ele. Vários aparelhos podem ser pareados, mas conecte só um por vez.
+
 ## Estado do projeto
 
 - **Testado em aparelho real (Linux):** mascote, totais, teclas, temas, telas de Projetos e Sessões, e status do agente pelos hooks.
-- **Ainda não confirmado em aparelho real:** bichinho, minijogo, acessórios, reações, Pomodoro, tempo limite da tela, telas Semanal e Modelos, configurações, idiomas, Wi-Fi, histórico no microSD, aprovação, teclas de atalho, instalação pelo navegador, Cardputer ADV, macOS e Windows.
+- **Ainda não confirmado em aparelho real:** firmware do T-Embed, bichinho, minijogo, acessórios, reações, Pomodoro, tempo limite da tela, telas Semanal e Modelos, configurações, idiomas, Wi-Fi, histórico no microSD, aprovação, teclas de atalho, instalação pelo navegador, Cardputer ADV, macOS e Windows.
 
 ## Desenvolvimento
 
