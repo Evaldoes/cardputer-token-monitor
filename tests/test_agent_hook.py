@@ -50,7 +50,7 @@ def test_resposta_do_aparelho(tmp_path, monkeypatch):
         (tmp_path / "responses" / rid).write_text("y")
 
     threading.Thread(target=responder).start()
-    assert agent_hook.wait_decision({"tool_name": "Bash", "tool_input": {"command": "ls"}}, timeout=3) == "y"
+    assert agent_hook.wait_decision({"tool_name": "Bash", "cwd": "/x/proj", "tool_input": {"command": "ls"}}, timeout=3) == "y"
 
 
 def test_arquivos_privados(tmp_path, monkeypatch):
