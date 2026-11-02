@@ -196,7 +196,7 @@ def summarize(entries, now, sessions=(), pending=None, config=None):
     states = [s["st"] for s in sessions]
     agent = next((a for a in ("waiting", "working", "idle") if a in states), "off")
     return {
-        "t": now.strftime("%H:%M"), "dt": now.strftime("%Y-%m-%d"),
+        "t": now.strftime("%H:%M"), "ts": int(now.timestamp()), "dt": now.strftime("%Y-%m-%d"),
         "d": day_total, "dc": sum(e.cache_read for e in today),
         "w": sum(e.tokens for e in week), "wc": sum(e.cache_read for e in week),
         "s": sum(e.tokens for e in session), "sc": sum(e.cache_read for e in session),

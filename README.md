@@ -9,6 +9,7 @@
 ## Features
 
 - **Pixel mascot:** walks while Claude works, jumps when it needs you, panics on alerts, sleeps when idle
+- **Virtual pet:** press `g` to feed, play, pet and put your mascot to bed; it levels up as you use tokens and never dies
 - **Agent status:** working, idle or waiting for permission, with a beep when it needs you
 - **Approve from the device (opt-in):** press `y` twice to allow, `n` to deny
 - **Estimated cost:** today, week and session at API list prices
@@ -26,6 +27,7 @@
 | Key | Action |
 | --- | --- |
 | Any other key / `,` | Next / previous view |
+| `g` | Open or close the pet screen (`f` feed, `b` play, `h` pet, `s` sleep) |
 | `t` | Next theme |
 | `c` | Next mascot color |
 | `m` | Mute |

@@ -82,6 +82,22 @@ uint32_t toastUntil = 0;
 String prevAgent = "off", prevAlert, prevPending;
 const int VIEW_COUNT = 6;
 
+// Bichinho: valores de 0 a 100. Ele nunca morre; só fica triste até receber atenção.
+struct Pet {
+    float food = 80, energy = 80, joy = 80;
+    bool asleep = false;
+    uint64_t xp = 0;
+} pet;
+bool petOpen = false, petDirty = false;
+uint32_t petTick = 0, petSaved = 0, petAnimUntil = 0, petMsgUntil = 0;
+uint64_t petLastDay = 0, petEpoch = 0;
+int petAnim = 0;  // 1 comida, 2 coração, 3 bola
+int mascotForce = 0;  // 1 dormindo, 2 andando, 3 pulando
+String petMsg;
+
+void petSync(uint64_t now, uint64_t day);
+void renderPet();
+
 const Theme &theme() { return THEMES[themeIndex]; }
 
 void showToast(const String &text) {
@@ -138,6 +154,7 @@ void applyLine(const String &line, bool fromUsb) {
         appendHistory(doc["dt"] | "");
         usbDay = doc["d"];
         usbCostDay = doc["cd"];
+        petSync(doc["ts"] | 0ULL, usbDay);
     }
     data.clock = doc["t"] | "--:--";
     data.day = doc["d"];
@@ -206,10 +223,10 @@ void applyLine(const String &line, bool fromUsb) {
 void drawMascot(int x, int y, int px, bool stale) {
     uint32_t t = millis();
     int frame = (t / 300) % 2;
-    bool sleeping = stale || data.agent == "off";
-    bool working = !sleeping && data.agent == "working";
-    bool waiting = !sleeping && data.agent == "waiting";
-    bool panic = !sleeping && data.alert.length();
+    bool sleeping = mascotForce ? mascotForce == 1 : stale || data.agent == "off";
+    bool working = mascotForce ? mascotForce == 2 : !sleeping && data.agent == "working";
+    bool waiting = mascotForce ? mascotForce == 3 : !sleeping && data.agent == "waiting";
+    bool panic = !mascotForce && !sleeping && data.alert.length();
     if (waiting) y -= frame * px * 2;
     if (panic) x += (t / 80) % 2 ? 2 : -2;
     bool blink = (t % 4000) < 180;
@@ -238,7 +255,7 @@ void drawMascot(int x, int y, int px, bool stale) {
     if (sleeping) {
         canvas.setTextColor(theme().dim);
         canvas.drawString(frame ? "z" : "zZ", x + 12 * px - 4, y - 8);
-    } else if (waiting) {
+    } else if (waiting && !mascotForce) {
         canvas.setTextColor(theme().warn);
         canvas.drawString("!", x + 12 * px, y);
     }
@@ -385,6 +402,8 @@ void render() {
     canvas.fillSprite(theme().bg);
     if (data.pendingId.length() && millis() - lastUsb < STALE_MS) {
         renderPending();
+    } else if (petOpen) {
+        renderPet();
     } else if (view < 3) {
         renderTotals(view, stale);
     } else if (view == 3) {
@@ -395,6 +414,139 @@ void render() {
         renderStats(stale);
     }
     canvas.pushSprite(0, 0);
+}
+
+void petAdvance(float hours) {
+    float rate = pet.food < 20 || pet.energy < 20 ? 8 : 4;
+    pet.food = constrain(pet.food - 6 * hours * (pet.asleep ? 0.5f : 1), 0, 100);
+    pet.joy = constrain(pet.joy - rate * hours * (pet.asleep ? 0.5f : 1), 0, 100);
+    pet.energy = constrain(pet.energy + (pet.asleep ? 30 : -5) * hours, 0, 100);
+    if (pet.asleep && pet.energy >= 100) pet.asleep = false;
+}
+
+void petSave() {
+    prefs.putFloat("petFood", pet.food);
+    prefs.putFloat("petEnergy", pet.energy);
+    prefs.putFloat("petJoy", pet.joy);
+    prefs.putBool("petAsleep", pet.asleep);
+    prefs.putULong64("petXp", pet.xp);
+    if (petEpoch) prefs.putULong64("petEpoch", petEpoch);
+    petSaved = millis();
+    petDirty = false;
+}
+
+void petLoad() {
+    pet.food = prefs.getFloat("petFood", 80);
+    pet.energy = prefs.getFloat("petEnergy", 80);
+    pet.joy = prefs.getFloat("petJoy", 80);
+    pet.asleep = prefs.getBool("petAsleep", false);
+    pet.xp = prefs.getULong64("petXp", 0);
+}
+
+// O relógio vem do PC; só ele permite contar o tempo com o aparelho desligado.
+void petSync(uint64_t now, uint64_t day) {
+    if (now && !petEpoch) {
+        uint64_t saved = prefs.getULong64("petEpoch", 0);
+        if (saved && now > saved) petAdvance(min<uint64_t>(now - saved, 7 * 86400) / 3600.0f);
+    }
+    if (now) petEpoch = now;
+    if (petLastDay && day > petLastDay) {
+        pet.xp += day - petLastDay;
+        petDirty = true;
+    }
+    petLastDay = day;
+}
+
+int petLevel() {
+    int level = 1;
+    while (pet.xp >= 500000ULL * level * level && level < 99) level++;
+    return level;
+}
+
+const char *petMood() {
+    if (pet.asleep) return "dormindo...";
+    if (pet.food < 25) return "com fome!";
+    if (pet.energy < 25) return "com sono...";
+    if (pet.joy < 25) return "triste, quer atencao";
+    if (pet.joy > 75 && pet.food > 50) return "muito feliz!";
+    return "tranquilo";
+}
+
+void petSay(const String &text, int anim, int freq) {
+    petMsg = text;
+    petMsgUntil = millis() + 2500;
+    petAnim = anim;
+    petAnimUntil = anim ? millis() + 1500 : 0;
+    if (freq) beep(freq, 80);
+    petDirty = true;
+}
+
+void petKey(char c) {
+    if (c == 's') {
+        pet.asleep = !pet.asleep;
+        petSay(pet.asleep ? "boa noite" : "bom dia!", 0, 500);
+    } else if (pet.asleep) {
+        petSay("zzz... aperte s para acordar", 0, 0);
+    } else if (c == 'f') {
+        if (pet.food >= 95) return petSay("estou cheio!", 0, 0);
+        pet.food = min(100.0f, pet.food + 25);
+        petSay("nham nham!", 1, 900);
+    } else if (c == 'h') {
+        pet.joy = min(100.0f, pet.joy + 10);
+        petSay("que carinho bom", 2, 1400);
+    } else if (c == 'b') {
+        if (pet.energy < 15) return petSay("cansado demais...", 0, 0);
+        if (pet.food < 10) return petSay("fome demais...", 0, 0);
+        pet.joy = min(100.0f, pet.joy + 20);
+        pet.energy = max(0.0f, pet.energy - 10);
+        pet.food = max(0.0f, pet.food - 5);
+        petSay("oba, bola!", 3, 1200);
+    }
+}
+
+void drawStat(const char *label, float value, int y) {
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextColor(theme().fg);
+    canvas.drawString(label, 104, y);
+    canvas.drawRect(160, y + 3, 74, 10, theme().dim);
+    canvas.fillRect(162, y + 5, value * 70 / 100, 6, value < 25 ? theme().warn : theme().accent);
+}
+
+void renderPet() {
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextDatum(top_left);
+    canvas.setTextColor(theme().accent);
+    canvas.drawString("MASCOTE  nivel " + String(petLevel()), 4, 2);
+    canvas.setTextDatum(top_right);
+    canvas.setTextColor(theme().dim);
+    if (millis() < toastUntil) canvas.drawString(toast, 236, 2);
+    canvas.setTextDatum(top_left);
+    bool animating = millis() < petAnimUntil;
+    mascotForce = pet.asleep ? 1 : animating && petAnim == 3 ? 3 : animating && petAnim == 1 ? 2 : 0;
+    // 4 = parado e acordado: sem isso ele imitaria o estado do agente.
+    if (!mascotForce) mascotForce = 4;
+    drawMascot(14, 44, 6, false);
+    mascotForce = 0;
+    if (animating) {
+        int frame = (millis() / 200) % 4;
+        if (petAnim == 1) {
+            canvas.fillCircle(44, 32 - frame, 4, 0xFD20);
+        } else if (petAnim == 2) {
+            canvas.setTextColor(0xF8B2);
+            canvas.drawString("<3", 12 + frame * 18, 26 - frame * 2);
+        } else if (petAnim == 3) {
+            canvas.fillCircle(8 + frame * 26, 30 + (frame % 2) * 8, 5, theme().accent);
+        }
+    }
+    drawStat("Fome", pet.food, 24);
+    drawStat("Energia", pet.energy, 42);
+    drawStat("Alegria", pet.joy, 60);
+    canvas.setTextColor(theme().fg);
+    canvas.drawString(millis() < petMsgUntil ? petMsg : String(petMood()), 104, 84);
+    canvas.setFont(&fonts::Font0);
+    canvas.setTextColor(theme().dim);
+    canvas.drawString("f comer  b brincar  h carinho", 4, 110);
+    canvas.drawString("s dormir  g sair", 4, 122);
 }
 
 void answerPending(const char *value) {
@@ -418,6 +570,14 @@ void handleKey(char c) {
                 confirmUntil = millis() + CONFIRM_MS;
             }
         }
+        return;
+    }
+    if (c == 'g') {
+        petOpen = !petOpen;
+        return;
+    }
+    if (petOpen && c != 't' && c != 'c' && c != 'm') {
+        petKey(c);
         return;
     }
     if (c == 't') {
@@ -477,6 +637,7 @@ void setup() {
     themeIndex = constrain(prefs.getInt("theme", 0), 0, THEME_COUNT - 1);
     mascotIndex = constrain(prefs.getInt("mascot", 0), 0, MASCOT_COLOR_COUNT - 1);
     muted = prefs.getBool("muted", false);
+    petLoad();
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     sdReady = SD.begin(SD_CS, SPI, 20000000);
     startWifi();
@@ -509,6 +670,13 @@ void loop() {
             if (millis() - lastUsb > STALE_MS || !lastUsb) applyLine(String(packet), false);
         }
     }
+    if (millis() - petTick >= 60000) {
+        petAdvance((millis() - petTick) / 3600000.0f);
+        petTick = millis();
+        petDirty = true;
+    }
+    // Grava com folga: a flash se desgasta a cada escrita.
+    if (petDirty && millis() - petSaved > 600000) petSave();
     static uint32_t lastDraw = 0;
     if (millis() - lastDraw > 80) {
         render();
