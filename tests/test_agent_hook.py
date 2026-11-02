@@ -61,10 +61,14 @@ def test_arquivos_privados(tmp_path, monkeypatch):
 
 
 def test_so_comando_visivel_por_inteiro_pode_ser_aprovado():
-    assert agent_hook.fully_visible("Bash", "ls -la")
-    assert not agent_hook.fully_visible("Bash", "x" * 61)
-    assert not agent_hook.fully_visible("Bash", "ls\nrm -rf /")
-    assert not agent_hook.fully_visible("Edit", "a.py")
+    ok = lambda name="Bash", cwd="/x/proj", **i: agent_hook.fully_visible(
+        {"tool_name": name, "cwd": cwd, "tool_input": i})
+    assert ok(command="ls -la", description="lista", timeout=5)
+    assert not ok(command="x" * 61)
+    assert not ok(command="ls\nrm -rf /")
+    assert not ok(name="Edit", file_path="a.py")
+    assert not ok(command="ls", dangerouslyDisableSandbox=True)
+    assert not ok(command="ls", cwd="/x/" + "p" * 19)
 
 
 def test_aprovacao_de_comando_cortado_e_ignorada(tmp_path, monkeypatch):

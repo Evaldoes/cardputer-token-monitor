@@ -158,9 +158,9 @@ def test_wifi_nao_expoe_nomes_nem_aprovacao():
 
 def test_linha_do_aparelho(tmp_path):
     rid = "a" * 32
-    handle_device_line(f"A {rid} y", {}, tmp_path)
+    handle_device_line(f"A {rid} y", {}, tmp_path, trusted=True)
     assert (tmp_path / "responses" / rid).read_text() == "y"
-    handle_device_line("A ../../x y", {}, tmp_path)
+    handle_device_line("A ../../x y", {}, tmp_path, trusted=True)
     assert len(list((tmp_path / "responses").iterdir())) == 1
     assert handle_device_line("P", {}, tmp_path) == "pause"
 
@@ -176,6 +176,6 @@ def test_aparelho_nao_pareado_nao_decide(tmp_path):
 def test_comando_so_roda_se_listado(tmp_path):
     calls = []
     cfg = {"commands": {"1": ["echo", "oi"]}}
-    handle_device_line("C 1", cfg, tmp_path, calls.append)
-    handle_device_line("C 2", cfg, tmp_path, calls.append)
+    handle_device_line("C 1", cfg, tmp_path, calls.append, trusted=True)
+    handle_device_line("C 2", cfg, tmp_path, calls.append, trusted=True)
     assert calls == [["echo", "oi"]]

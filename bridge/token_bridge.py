@@ -156,7 +156,7 @@ def read_pending(state_dir=STATE, now_ts=None):
         return None
     p = min(found, key=lambda x: x["expires"])
     return {"id": p["id"], "tool": p.get("tool", "")[:16], "d": p.get("detail", "")[:60],
-            "ok": bool(p.get("can_allow"))}
+            "ok": bool(p.get("can_allow")), "dir": p.get("dir", "")[:18]}
 
 
 def summarize(entries, now, sessions=(), pending=None, config=None):
@@ -256,7 +256,7 @@ def load_config(path=CONFIG):
         return dict(DEFAULTS)
 
 
-def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trusted=True):
+def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trusted=False):
     """Trata uma linha vinda do aparelho. Devolve "pause" se ele pediu para alternar a pausa."""
     parts = line.strip().split()
     if parts[:1] == ["P"]:
@@ -276,12 +276,11 @@ def handle_device_line(line, config, state_dir=STATE, run=subprocess.Popen, trus
 
 
 def find_port(serial_number=""):
-    """Com aparelho pareado, aceita só ele; sem pareamento, o primeiro Espressif."""
+    """Com aparelho pareado, aceita só ele. Na dúvida entre vários, não conecta."""
     from serial.tools import list_ports
-    for p in list_ports.comports():
-        if p.vid == ESPRESSIF_VID and (not serial_number or p.serial_number == serial_number):
-            return p.device
-    return None
+    found = [p.device for p in list_ports.comports()
+             if p.vid == ESPRESSIF_VID and (not serial_number or p.serial_number == serial_number)]
+    return found[0] if len(found) == 1 else None
 
 
 def pair():
@@ -291,7 +290,9 @@ def pair():
         raise SystemExit(f"Conecte exatamente um aparelho Espressif (encontrei {len(found)}).")
     config = {**load_config(), "device_serial": found[0].serial_number}
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG.write_text(json.dumps(config, indent=2) + "\n")
+    tmp = CONFIG.with_suffix(".tmp")
+    tmp.write_text(json.dumps(config, indent=2) + "\n")
+    tmp.replace(CONFIG)
     print(f"Pareado com {found[0].serial_number} em {found[0].device}.")
 
 
@@ -338,12 +339,18 @@ def main():
     paused = False
     next_send = 0.0
     last_key = None
+    connected_as = ""  # número de série verificado ao abrir a porta; "" se não pareado
+    private_ok = False
     while True:
         now = datetime.now(timezone.utc).astimezone()
         config = load_config()
         STATE.mkdir(parents=True, exist_ok=True)
         (STATE / "bridge.alive").touch()
         paired = config["device_serial"]
+        if ser is not None and paired != connected_as:
+            # O pareamento mudou: a conexão aberta não vale mais, nem o que estava no buffer.
+            ser.close()
+            ser, buffer = None, b""
         sessions, pending = read_sessions(), read_pending() if paired else None
         key = ([s["st"] for s in sessions], pending and pending["id"])
         try:
@@ -363,16 +370,20 @@ def main():
                     port = find_port(paired) if paired else args.port or find_port()
                     if port:
                         ser = open_port(port)
+                        connected_as = paired
+                        # Sem pareamento nem porta escolhida à mão, é um aparelho qualquer.
+                        private_ok = bool(paired or args.port)
                         print(f"conectado em {port}", flush=True)
                 if ser is not None and not paused:
-                    ser.write(payload.encode() + b"\n")
+                    sent = payload if private_ok else json.dumps(public_view(summary), separators=(",", ":"))
+                    ser.write(sent.encode() + b"\n")
                 next_send = time.time() + args.interval
                 last_key = key
             if ser is not None:
                 buffer += ser.read(256)
                 while b"\n" in buffer:
                     line, buffer = buffer.split(b"\n", 1)
-                    if handle_device_line(line.decode(errors="ignore"), config, trusted=bool(paired)) == "pause":
+                    if handle_device_line(line.decode(errors="ignore"), config, trusted=bool(connected_as)) == "pause":
                         paused = not paused
         except OSError as exc:  # serial.SerialException herda de OSError
             print(f"sem conexão: {exc}", flush=True)

@@ -37,7 +37,7 @@ struct Data {
     uint8_t heat[28] = {};
     Row sessions[4], projects[4];
     int sessionCount = 0, projectCount = 0;
-    String clock = "--:--", date, model = "-", agent = "off", alert, pendingId, pendingTool, pendingDetail;
+    String clock = "--:--", date, model = "-", agent = "off", alert, pendingId, pendingTool, pendingDetail, pendingDir;
 } data;
 
 // Mascote: 12x8, como em docs/mascot.png. 1 = corpo, 2 = olho.
@@ -53,6 +53,8 @@ M5Canvas canvas(&M5Cardputer.Display);
 Preferences prefs;
 WiFiUDP udp;
 String input, sdDate;
+uint64_t usbDay = 0;
+float usbCostDay = 0;
 uint32_t lastRx = 0, lastUsb = 0, confirmUntil = 0, pendingSince = 0;
 String armedId;
 bool pendingAllowed = false;
@@ -89,7 +91,7 @@ void appendHistory(const String &newDate) {
     if (sdReady && sdDate.length() && sdDate != newDate) {
         File f = SD.open("/token-history.csv", FILE_APPEND);
         if (f) {
-            f.printf("%s,%llu,%.2f\n", sdDate.c_str(), data.day, data.costDay);
+            f.printf("%s,%llu,%.2f\n", sdDate.c_str(), usbDay, usbCostDay);
             f.close();
         }
     }
@@ -100,7 +102,11 @@ void applyLine(const String &line, bool fromUsb) {
     JsonDocument doc;
     if (deserializeJson(doc, line)) return;
     // A rede não é autenticada: só a USB escreve no cartão.
-    if (fromUsb) appendHistory(doc["dt"] | "");
+    if (fromUsb) {
+        appendHistory(doc["dt"] | "");
+        usbDay = doc["d"];
+        usbCostDay = doc["cd"];
+    }
     data.clock = doc["t"] | "--:--";
     data.day = doc["d"];
     data.dayCache = doc["dc"];
@@ -142,6 +148,7 @@ void applyLine(const String &line, bool fromUsb) {
         r.value = p["v"];
     }
     // Aprovação só existe pela USB: o Wi-Fi é transmissão aberta e não traz esse campo.
+    data.pendingDir = doc["p"]["dir"] | "";
     String newId = doc["p"]["id"] | "";
     if (newId != data.pendingId) {
         // Pedido novo cancela qualquer confirmação em curso e ignora teclas por um instante.
@@ -322,10 +329,13 @@ void renderPending() {
     drawMascot(190, 2, 3, false);
     canvas.setFont(&fonts::FreeSansBold9pt7b);
     canvas.setTextColor(theme().fg);
-    canvas.drawString(data.pendingTool, 4, 30);
+    canvas.drawString(data.pendingTool, 4, 24);
+    canvas.setFont(&fonts::Font2);
+    canvas.setTextColor(theme().accent);
+    canvas.drawString(data.pendingDir, 4, 42);
     canvas.setFont(&fonts::Font2);
     canvas.setTextColor(theme().dim);
-    canvas.setCursor(4, 54);
+    canvas.setCursor(4, 60);
     canvas.setTextWrap(true);
     canvas.print(data.pendingDetail);
     canvas.setTextWrap(false);

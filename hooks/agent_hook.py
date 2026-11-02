@@ -12,6 +12,8 @@ STATE = Path.home() / ".cache" / "cardputer-token-monitor"
 APPROVE_SECONDS = 25
 BRIDGE_FRESH_SECONDS = 15
 DETAIL_MAX = 60
+DIR_MAX = 18
+BASH_KEYS = {"command", "description", "timeout"}
 
 
 def private_dir(path):
@@ -73,9 +75,15 @@ def describe(tool_input):
     return ""
 
 
-def fully_visible(tool_name, detail):
-    """Só um comando Bash curto cabe inteiro na tela; o resto só pode ser negado no aparelho."""
-    return tool_name == "Bash" and 0 < len(detail) <= DETAIL_MAX and detail.isprintable() and detail.isascii()
+def fully_visible(data):
+    """Só um Bash curto, sem opção extra e com a pasta legível, cabe inteiro na tela."""
+    tool_input = data.get("tool_input")
+    if data.get("tool_name") != "Bash" or not isinstance(tool_input, dict) or set(tool_input) - BASH_KEYS:
+        return False
+    detail = describe(tool_input)
+    folder = Path(data.get("cwd") or "").name
+    return (0 < len(detail) <= DETAIL_MAX and detail.isprintable() and detail.isascii()
+            and 0 < len(folder) <= DIR_MAX and folder.isprintable() and folder.isascii())
 
 
 def wait_decision(data, timeout=APPROVE_SECONDS):
@@ -89,14 +97,15 @@ def wait_decision(data, timeout=APPROVE_SECONDS):
     tool = data.get("tool_name", "")
     detail = describe(data.get("tool_input"))
     write_private(pending, json.dumps({"id": rid, "tool": tool, "detail": detail[:DETAIL_MAX],
-                                       "can_allow": fully_visible(tool, detail),
+                                       "can_allow": fully_visible(data),
+                                       "dir": Path(data.get("cwd") or "").name[:DIR_MAX],
                                        "expires": time.time() + timeout}))
     try:
         deadline = time.time() + timeout
         while time.time() < deadline:
             if response.exists():
                 value = response.read_text().strip()
-                if value == "y" and not fully_visible(tool, detail):
+                if value == "y" and not fully_visible(data):
                     return None
                 return value if value in ("y", "n") else None
             time.sleep(0.25)
