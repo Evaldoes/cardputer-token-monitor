@@ -2,7 +2,7 @@
 
 **Um companheiro de mesa, de bolso, para o Claude Code.** Veja seus tokens, o custo estimado e o status do agente em um Cardputer com ESP32-S3, e cuide de um bichinho em pixel art que sobe de nível enquanto você trabalha.
 
-![Ilustração da tela do monitor](docs/screen-mockup.svg)
+![Ilustração da tela do monitor](docs/screens/pt/today.svg)
 
 *Ilustração com números de exemplo. As telas reais têm mais detalhes.*
 
@@ -13,6 +13,7 @@
 - [Funcionalidades](#funcionalidades)
 - [Requisitos](#requisitos)
 - [Início rápido](#início-rápido)
+- [Galeria de telas](#galeria-de-telas)
 - [Telas](#telas)
 - [Teclas](#teclas)
 - [Bichinho virtual](#bichinho-virtual)
@@ -120,6 +121,30 @@ Nunca publique a pasta `backup/`, porque ela pode conter senhas de Wi-Fi. Ela j�
 ### Instalação pelo navegador
 
 O arquivo `.github/workflows/pages.yml` compila o firmware e publica o instalador de `site/` no GitHub Pages, para uso no Chrome ou Edge. O Pages precisa estar ativado no repositório. Depois da instalação, o programa do PC continua sendo necessário.
+
+## Galeria de telas
+
+*Ilustrações com dados de exemplo, geradas por `scripts/gen_mockups.py`. O espaçamento e as fontes mudam um pouco no aparelho real.*
+
+| Hoje | Semana | Sessão |
+| --- | --- | --- |
+| <img src="docs/screens/pt/today.svg" alt="Hoje" width="260"> | <img src="docs/screens/pt/week.svg" alt="Semana" width="260"> | <img src="docs/screens/pt/session.svg" alt="Sessão" width="260"> |
+
+| Projetos | Sessões | Recordes |
+| --- | --- | --- |
+| <img src="docs/screens/pt/projects.svg" alt="Projetos" width="260"> | <img src="docs/screens/pt/sessions.svg" alt="Sessões" width="260"> | <img src="docs/screens/pt/records.svg" alt="Recordes" width="260"> |
+
+| Semanal | Modelos | Bichinho |
+| --- | --- | --- |
+| <img src="docs/screens/pt/weekly.svg" alt="Semanal" width="260"> | <img src="docs/screens/pt/models.svg" alt="Modelos" width="260"> | <img src="docs/screens/pt/pet.svg" alt="Bichinho" width="260"> |
+
+| Minijogo | Configurações | Redes Wi-Fi |
+| --- | --- | --- |
+| <img src="docs/screens/pt/game.svg" alt="Minijogo" width="260"> | <img src="docs/screens/pt/settings.svg" alt="Configurações" width="260"> | <img src="docs/screens/pt/wifi.svg" alt="Redes Wi-Fi" width="260"> |
+
+| Senha do Wi-Fi | Pedido de permissão |
+| --- | --- |
+| <img src="docs/screens/pt/password.svg" alt="Senha do Wi-Fi" width="260"> | <img src="docs/screens/pt/permission.svg" alt="Pedido de permissão" width="260"> |
 
 ## Telas
 
