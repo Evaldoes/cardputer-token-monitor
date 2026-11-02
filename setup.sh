@@ -67,7 +67,7 @@ restore_service() {
 trap restore_service EXIT
 
 find_port() {
-    uv run -q --with pyserial python3 - <<'PY'
+    uv run --no-project -q --with pyserial python3 -I - <<'PY'
 from serial.tools import list_ports
 found = [p.device for p in list_ports.comports() if p.vid == 0x303A]
 print(found[0] if len(found) == 1 else "")
@@ -106,11 +106,13 @@ fi
 
 if [ "$FLASH" = 1 ] && [ -n "$PORT" ]; then
     step "Backup do firmware atual"
+    echo "O backup pode conter senhas de Wi-Fi: fica legível só por você e nunca deve ser publicado."
     if [ -e "$BACKUP" ]; then
         echo "Backup já existe; mantido: $BACKUP"
+        run chmod 600 "$BACKUP"
     elif confirm "Fazer backup do firmware em backup/?"; then
-        run mkdir -p "$REPO/backup"
-        run uvx esptool --port "$PORT" read-flash 0 0x800000 "$BACKUP"
+        run mkdir -p -m 700 "$REPO/backup"
+        (umask 077; run uvx esptool --port "$PORT" read-flash 0 0x800000 "$BACKUP")
     fi
 
     step "Gravação do firmware"
@@ -127,7 +129,7 @@ fi
 if [ -n "$PORT" ]; then
     step "Pareamento"
     if confirm "Parear com o aparelho conectado?"; then
-        run uv run -q --with pyserial "$REPO/bridge/token_bridge.py" --pair
+        run uv run --no-project -q --with pyserial "$REPO/bridge/token_bridge.py" --pair
     fi
 fi
 
@@ -161,7 +163,7 @@ if [ "$YES" = 0 ] && [ "$DRY" = 0 ] && [ -t 0 ]; then
     echo "Enter mantém o valor atual; 0 desliga."
     read -r -p "Meta diária de tokens: " goal
     read -r -p "Orçamento diário em US$: " budget
-    GOAL=$goal BUDGET=$budget CONFIG=$CONFIG python3 - <<'PY'
+    GOAL=$goal BUDGET=$budget CONFIG=$CONFIG python3 -I - <<'PY'
 import json
 import os
 from pathlib import Path
