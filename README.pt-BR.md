@@ -475,7 +475,8 @@ Ele não tem teclado, então fica sem minijogo, Pomodoro, Wi-Fi, teclas de atalh
 ## Estado do projeto
 
 - **Testado em aparelho real (Linux):** mascote, totais, teclas, temas, telas de Projetos e Sessões, e status do agente pelos hooks.
-- **Ainda não confirmado em aparelho real:** firmware do T-Embed, bichinho, minijogo, acessórios, reações, Pomodoro, tempo limite da tela, telas Semanal e Modelos, configurações, idiomas, Wi-Fi, histórico no microSD, aprovação, teclas de atalho, instalação pelo navegador, Cardputer ADV, macOS e Windows.
+- **T-Embed, testado em aparelho real (Linux):** tela, botão giratório, clique e toque longo, tela do bichinho e anel de LEDs.
+- **Ainda não confirmado em aparelho real:** bichinho, minijogo, acessórios, reações, Pomodoro, tempo limite da tela, telas Semanal e Modelos, configurações, idiomas, Wi-Fi, histórico no microSD, aprovação, teclas de atalho, instalação pelo navegador, Cardputer ADV, macOS e Windows.
 
 ## Desenvolvimento
 

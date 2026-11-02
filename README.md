@@ -475,7 +475,8 @@ It has no keyboard, so it doesn't have the mini-game, Pomodoro, Wi-Fi, shortcut 
 ## Project status
 
 - **Tested on a real device (Linux):** mascot, totals, keys, themes, Projects and Sessions screens, and agent status through hooks.
-- **Not yet confirmed on a real device:** T-Embed firmware, pet, mini-game, accessories, reactions, Pomodoro, screen timeout, Weekly and Models screens, settings, languages, Wi-Fi, microSD history, approval, shortcut keys, web installer, Cardputer ADV, macOS and Windows.
+- **T-Embed, tested on a real device (Linux):** screen, knob, click and hold, pet screen and LED ring.
+- **Not yet confirmed on a real device:** pet, mini-game, accessories, reactions, Pomodoro, screen timeout, Weekly and Models screens, settings, languages, Wi-Fi, microSD history, approval, shortcut keys, web installer, Cardputer ADV, macOS and Windows.
 
 ## Development
 
